@@ -14,24 +14,22 @@ export default function NotionChart() {
   const [charts, setCharts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetch(import.meta.env.VITE_API_URL)
-      .then(res => res.json())
-      .then(data => {
-        // Sortowanie po slot (gdyby backend tego nie zrobił)
-        const sorted = [...data].sort((a, b) => {
-          if (a.slot === null) return 1;
-          if (b.slot === null) return -1;
-          return a.slot - b.slot;
-        });
-        setCharts(sorted);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error(err);
-        setLoading(false);
-      });
-  }, []);
+ useEffect(() => {
+  fetch(import.meta.env.VITE_API_URL)
+    .then(res => {
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      return res.json();
+    })
+    .then(data => {
+      console.log("Dane z backendu:", data);
+      setCharts(data);
+      setLoading(false);
+    })
+    .catch(err => {
+      console.error("Błąd podczas pobierania:", err);
+      setLoading(false);
+    });
+}, []);
 
   if (loading) return <p>⏳ Ładowanie danych z Notion...</p>;
   if (!charts || charts.length === 0) return <p>⚠️ Brak danych do wyświetlenia.</p>;

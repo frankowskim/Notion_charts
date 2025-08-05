@@ -1,0 +1,35 @@
+.chart-container {
+  width: 320px;
+  margin-bottom: 2rem;
+  position: relative; /* Pozycjonowanie absolutne dla .chart-center */
+}
+
+.chart-title {
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.chart-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+}
+
+.chart-total {
+  font-weight: 700;
+  font-size: 48px;
+  line-height: 1;
+  color: #d0d0d0;
+  font-family: '"IBM Plex Sans", sans-serif';
+  display: block;
+  margin-bottom: 4px;
+}
+
+.chart-total-label {
+  font-weight: 400;
+  font-size: 16px;
+  color: #999;
+}

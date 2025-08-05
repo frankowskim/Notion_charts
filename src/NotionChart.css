@@ -41,6 +41,20 @@
   gap: 20px; /* Odstęp między wykresami */
 }
 
+/* Ograniczenie do maksymalnie 5 kolumn */
+@media (min-width: 600px) { /* Możesz dostosować szerokość w zależności od potrzeb */
+  .chart-grid {
+    grid-template-columns: repeat(2, 1fr); /* Maksymalnie 2 kolumny dla mniejszych ekranów */
+  }
+}
+
+@media (min-width: 1000px) { /* Możesz dostosować szerokość w zależności od potrzeb */
+  .chart-grid {
+    grid-template-columns: repeat(5, 1fr); /* Maksymalnie 5 kolumn dla większych ekranów */
+  }
+}
+
+
 .doughnut-center {
   position: absolute;
   top: 0%;
@@ -72,9 +86,3 @@ input[type="checkbox"] {
     cursor: pointer;
 }
 
-/* Ograniczenie do maksymalnie 5 kolumn */
-@media (min-width: 1000px) { /* Możesz dostosować szerokość w zależności od potrzeb */
-  .chart-grid {
-    grid-template-columns: repeat(5, 1fr); /* Maksymalnie 5 kolumn */
-  }
-}

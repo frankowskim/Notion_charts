@@ -87,7 +87,7 @@ export default function NotionChart() {
                   datasets: [
                     {
                       data: chart.data.map(d => d.value),
-                      backgroundColor: ['#36A2EB', '#FF6384', '#4BC0C0', '#FFCE56'],
+                      backgroundColor: ['#94999dff', '#36a2eb', '#ff4069', '#277f53'],
                       borderWidth: 0,
                     }
                   ]

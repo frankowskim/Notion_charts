@@ -121,10 +121,13 @@ export default function NotionChart() {
               }}
             />
             <div
-              className="text-center text-3xl font-bold absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center"
+              style={{ fontWeight: 700, fontSize: 48, lineHeight: 1, color: '#d0d0d0', pointerEvents: 'none', fontFamily: '"IBM Plex Sans", sans-serif' }}
             >
               {total}
-              <div className="text-sm font-normal text-gray-400">Total</div>
+              <div style={{ fontWeight: 400, fontSize: 16, color: '#999', marginTop: -4 }}>
+                Total
+              </div>
             </div>
           </div>
         );

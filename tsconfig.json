@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "esnext", // lub "es2020" lub podobne, w zależności od potrzeb
+    "module": "esnext", // lub "commonjs" w zależności od potrzeb
+    "moduleResolution": "node",
+    "strict": true, // Zalecane dla lepszego wykrywania błędów
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "jsx": "react-jsx", // Jeśli używasz React
+    "lib": ["dom", "dom.iterable", "esnext"], // Dodatkowe biblioteki, jeśli potrzebne
+    "allowJs": true, // Jeśli masz pliki .js
+    "baseUrl": ".", // lub ścieżka do katalogu źródłowego
+    "paths": {
+      "@/*": ["./src/*"] // Opcjonalnie, dla aliasów importów
+    }
+  },
+  "include": ["./src/**/*"], // Wskaż katalogi z plikami TypeScript
+  "exclude": ["node_modules"] // Wyklucz node_modules
+}

@@ -37,7 +37,7 @@
 
 .chart-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr); /* 5 kolumn */
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Dostosowuje kolumny do szerokości */
   gap: 20px; /* Odstęp między wykresami */
 }
 
@@ -70,4 +70,11 @@ input[type="checkbox"] {
     width: 16px;
     height: 16px;
     cursor: pointer;
+}
+
+/* Ograniczenie do maksymalnie 5 kolumn */
+@media (min-width: 1000px) { /* Możesz dostosować szerokość w zależności od potrzeb */
+  .chart-grid {
+    grid-template-columns: repeat(5, 1fr); /* Maksymalnie 5 kolumn */
+  }
 }

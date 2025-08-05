@@ -24,34 +24,11 @@ export default function NotionChart() {
     const [charts, setCharts] = useState<ChartItem[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+    const [autoRefresh, setAutoRefresh] = useState<boolean>(false); // Nowy stan dla autoodświeżania
 
-const [lastUpdatedTimestamp, setLastUpdatedTimestamp] = useState<number | null>(null);
-const [autoRefresh, setAutoRefresh] = useState<boolean>(false);
-
-const fetchTimestamp = async () => {
-    try {
-        const timestampApiUrl = `${import.meta.env.VITE_API_URL}/timestamp`; // Przykładowy endpoint
-        const res = await fetch(timestampApiUrl);
-        if (!res.ok) {
-            throw new Error(`HTTP error fetching timestamp: ${res.status}`);
-        }
-        const data = await res.json();
-        return data.timestamp as number; // Zakładamy, że backend zwraca obiekt { timestamp: number }
-    } catch (error) {
-        console.error('❌ Błąd podczas pobierania timestampu:', error);
-        return null;
-    }
-};
-
-const fetchData = async () => {
-    setLoading(true);
-    try {
-        const newTimestamp = await fetchTimestamp();
-        if (newTimestamp === null) {
-            return; // Przerwij, jeśli nie udało się pobrać timestampu
-        }
-
-        if (newTimestamp !== lastUpdatedTimestamp) {
+    const fetchData = async () => {
+        setLoading(true);
+        try {
             const apiUrl = import.meta.env.VITE_API_URL;
             if (!apiUrl) {
                 throw new Error('API URL is not defined in environment variables');
@@ -64,16 +41,12 @@ const fetchData = async () => {
             const data: ChartItem[] = await res.json();
             setCharts(data);
             setLastUpdated(new Date());
-            setLastUpdatedTimestamp(newTimestamp); // Zaktualizuj timestamp po udanym pobraniu danych
-        } else {
-            console.log('Dane nie zostały zmienione, pomijam odświeżanie.');
+        } catch (err) {
+            console.error('❌ Błąd podczas pobierania danych:', err);
+        } finally {
+            setLoading(false);
         }
-    } catch (err) {
-        console.error('❌ Błąd podczas pobierania danych:', err);
-    } finally {
-        setLoading(false);
-    }
-};
+    };
 
     // Efekt uruchamiający autoodświeżanie
     useEffect(() => {
@@ -82,7 +55,7 @@ const fetchData = async () => {
             const intervalId = setInterval(fetchData, 10000); // Odświeżanie co 60 sekund
             return () => clearInterval(intervalId); // Czyszczenie interwału
         }
-    }, [autoRefresh, lastUpdatedTimestamp]); // Zależność od stanu autoRefresh
+    }, [autoRefresh]); // Zależność od stanu autoRefresh
 
     // Dodanie efektu, który pobiera dane tylko raz przy pierwszym renderowaniu
     useEffect(() => {

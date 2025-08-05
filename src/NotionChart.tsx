@@ -52,7 +52,7 @@ export default function NotionChart() {
     useEffect(() => {
         if (autoRefresh) {
             fetchData();
-            const intervalId = setInterval(fetchData, 30000); // Odświeżanie co 60 sekund
+            const intervalId = setInterval(fetchData, 1000); // Odświeżanie co 60 sekund
             return () => clearInterval(intervalId); // Czyszczenie interwału
         }
     }, [autoRefresh]); // Zależność od stanu autoRefresh

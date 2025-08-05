@@ -74,57 +74,59 @@ export default function NotionChart() {
         </p>
       )}
 
-      {charts.map((chart, index) => {
-        const total = chart.data.reduce((sum, d) => sum + (d?.value ?? 0), 0);
+      <div className="chart-grid">
+        {charts.map((chart, index) => {
+          const total = chart.data.reduce((sum, d) => sum + (d?.value ?? 0), 0);
 
-        return (
-          <div key={index} className="chart-container">
-            <h3 className="chart-title">{chart.title}</h3>
-            <Doughnut
-              data={{
-                labels: chart.data.map(d => d.label),
-                datasets: [
-                  {
-                    data: chart.data.map(d => d.value),
-                    backgroundColor: ['#36A2EB', '#FF6384', '#4BC0C0', '#FFCE56'],
-                    borderWidth: 0,
-                  }
-                ]
-              }}
-              options={{
-                cutout: '75%',
-                plugins: {
-                  datalabels: {
-                    display: false
-                  },
-                  tooltip: {
-                    callbacks: {
-                      label: (context) => {
-                        const label = context.label || '';
-                        const value = chart.data.find(item => item.label === label)?.value || 0;
-                        const percentage = ((value / total) * 100).toFixed(0);
-                        return `${label} ${value} (${percentage}%)`;
+          return (
+            <div key={index} className="chart-container">
+              <h3 className="chart-title">{chart.title}</h3>
+              <Doughnut
+                data={{
+                  labels: chart.data.map(d => d.label),
+                  datasets: [
+                    {
+                      data: chart.data.map(d => d.value),
+                      backgroundColor: ['#36A2EB', '#FF6384', '#4BC0C0', '#FFCE56'],
+                      borderWidth: 0,
+                    }
+                  ]
+                }}
+                options={{
+                  cutout: '75%',
+                  plugins: {
+                    datalabels: {
+                      display: false
+                    },
+                    tooltip: {
+                      callbacks: {
+                        label: (context) => {
+                          const label = context.label || '';
+                          const value = chart.data.find(item => item.label === label)?.value || 0;
+                          const percentage = ((value / total) * 100).toFixed(0);
+                          return `${label} ${value} (${percentage}%)`;
+                        }
+                      }
+                    },
+                    legend: {
+                      display: true,
+                      position: 'bottom',
+                      labels: {
+                        font: { size: 12 },
+                        boxWidth: 16,
                       }
                     }
-                  },
-                  legend: {
-                    display: true,
-                    position: 'bottom',
-                    labels: {
-                      font: { size: 12 },
-                      boxWidth: 16,
-                    }
                   }
-                }
-              }}
-            />
-            <div className="chart-center">
-              <span className="chart-total">{total}</span>
-              <span className="chart-total-label">Total</span>
+                }}
+              />
+              <div className="chart-center">
+                <span className="chart-total">{total}</span>
+                <span className="chart-total-label">Total</span>
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }

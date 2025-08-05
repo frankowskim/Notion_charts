@@ -7,6 +7,7 @@ import {
   Legend
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
+import './NotionChart.css'; // Importuj osobny plik CSS
 
 ChartJS.register(ArcElement, Tooltip, Legend, ChartDataLabels);
 
@@ -46,7 +47,6 @@ export default function NotionChart() {
     }
   };
 
-  // 🕒 Automatyczne pobieranie danych co 60 sekund
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 60000);
@@ -78,16 +78,14 @@ export default function NotionChart() {
         const total = chart.data.reduce((sum, d) => sum + (d?.value ?? 0), 0);
 
         return (
-          <div key={index} className="relative" style={{ width: '320px', marginBottom: '2rem' }}>
-            <h3 className="font-semibold mb-2">{chart.title}</h3>
+          <div key={index} className="chart-container">
+            <h3 className="chart-title">{chart.title}</h3>
             <Doughnut
               data={{
-                labels: chart.data.map(
-                  (d) => `${d.label} ${d.value} (${((d.value / total) * 100).toFixed(0)}%)`
-                ),
+                labels: chart.data.map(d => d.label),
                 datasets: [
                   {
-                    data: chart.data.map((d) => d.value),
+                    data: chart.data.map(d => d.value),
                     backgroundColor: ['#36A2EB', '#FF6384', '#4BC0C0', '#FFCE56'],
                     borderWidth: 0,
                   }
@@ -103,7 +101,9 @@ export default function NotionChart() {
                     callbacks: {
                       label: (context) => {
                         const label = context.label || '';
-                        return `${label}`;
+                        const value = chart.data.find(item => item.label === label)?.value || 0;
+                        const percentage = ((value / total) * 100).toFixed(0);
+                        return `${label} ${value} (${percentage}%)`;
                       }
                     }
                   },
@@ -111,23 +111,16 @@ export default function NotionChart() {
                     display: true,
                     position: 'bottom',
                     labels: {
-                      font: {
-                        size: 12,
-                      },
+                      font: { size: 12 },
                       boxWidth: 16,
                     }
                   }
                 }
               }}
             />
-            <div
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center"
-              style={{ fontWeight: 700, fontSize: 48, lineHeight: 1, color: '#d0d0d0', pointerEvents: 'none', fontFamily: '"IBM Plex Sans", sans-serif' }}
-            >
-              {total}
-              <div style={{ fontWeight: 400, fontSize: 16, color: '#999', marginTop: -4 }}>
-                Total
-              </div>
+            <div className="chart-center">
+              <span className="chart-total">{total}</span>
+              <span className="chart-total-label">Total</span>
             </div>
           </div>
         );

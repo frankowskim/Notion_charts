@@ -45,3 +45,22 @@
   width: 100%; /* Umożliwia skalowanie do widoku */
   height: 200px; /* Ustalona wysokość, dostosuj według potrzeb */
 }
+
+.doughnut-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  /* Dodane style dla lepszego dopasowania */
+  width: 100%; /* Zajmuje całą szerokość kontenera */
+  height: 100%; /* Zajmuje całą wysokość kontenera */
+  display: flex;
+  justify-content: center; /* Wyśrodkowanie w poziomie */
+  align-items: center; /* Wyśrodkowanie w pionie */
+}
+
+.doughnut-total {
+  font-size: 1.2em;
+  font-weight: bold;
+}

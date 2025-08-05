@@ -27,7 +27,15 @@ export default function NotionChart() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await fetch('https://notioncharts.netlify.app/api/notion');
+      const apiUrl = import.meta.env.VITE_API_URL;
+      if (!apiUrl) {
+        throw new Error('API URL is not defined in environment variables');
+      }
+
+      const res = await fetch(apiUrl);
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
       const data: ChartItem[] = await res.json();
       setCharts(data);
       setLastUpdated(new Date());
@@ -86,7 +94,7 @@ export default function NotionChart() {
                 ]
               }}
               options={{
-                cutout: '75%', // ustawienie efektu donut przeniesione do options
+                cutout: '75%',
                 plugins: {
                   datalabels: {
                     display: false

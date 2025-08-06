@@ -24,7 +24,28 @@ export default function NotionChart() {
     const [charts, setCharts] = useState<ChartItem[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-    const [autoRefresh, setAutoRefresh] = useState<boolean>(false); // Nowy stan dla autoodświeżania
+    const [autoRefresh, setAutoRefresh] = useState<boolean>(false);
+
+    // 🆕 Dodaj TUTAJ funkcję checkForUpdates:
+    const checkForUpdates = async () => {
+        try {
+            const apiUrl = import.meta.env.VITE_API_URL;
+            const res = await fetch(apiUrl, { method: 'HEAD' });
+            const serverTimestamp = res.headers.get('x-last-modified');
+
+            if (serverTimestamp) {
+                const serverDate = new Date(parseInt(serverTimestamp, 10));
+                if (!lastUpdated || serverDate > lastUpdated) {
+                    console.log("🔁 Aktualizacja danych (zmiany na backendzie)");
+                    await fetchData();
+                } else {
+                    console.log("✅ Brak zmian na backendzie");
+                }
+            }
+        } catch (err) {
+            console.error("❌ Błąd przy sprawdzaniu timestampu:", err);
+        }
+    };
 
     const fetchData = async () => {
         setLoading(true);
@@ -50,12 +71,12 @@ export default function NotionChart() {
 
     // Efekt uruchamiający autoodświeżanie
     useEffect(() => {
-        if (autoRefresh) {
-            fetchData();
-            const intervalId = setInterval(fetchData, 10000); // Odświeżanie co 60 sekund
-            return () => clearInterval(intervalId); // Czyszczenie interwału
-        }
-    }, [autoRefresh]); // Zależność od stanu autoRefresh
+    if (autoRefresh) {
+        checkForUpdates(); // pierwszy raz od razu
+        const intervalId = setInterval(checkForUpdates, 2000); // sprawdzaj co 2 sekundy
+        return () => clearInterval(intervalId);
+    }
+}, [autoRefresh, lastUpdated]); // Zależność od stanu autoRefresh
 
     // Dodanie efektu, który pobiera dane tylko raz przy pierwszym renderowaniu
     useEffect(() => {

@@ -24,7 +24,7 @@ export default function NotionChart() {
     const [charts, setCharts] = useState<ChartItem[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-    const [autoRefresh, setAutoRefresh] = useState<boolean>(false);
+    const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
     const ws = useRef<WebSocket | null>(null);
 
     const fetchData = async () => {

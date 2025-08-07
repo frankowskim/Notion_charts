@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Doughnut } from 'react-chartjs-2';
 import {
     Chart as ChartJS,
@@ -7,7 +7,7 @@ import {
     Legend
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
-import './NotionChart.css'; // Importuj osobny plik CSS
+import './NotionChart.css';
 
 ChartJS.register(ArcElement, Tooltip, Legend, ChartDataLabels);
 
@@ -25,40 +25,17 @@ export default function NotionChart() {
     const [loading, setLoading] = useState<boolean>(true);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
     const [autoRefresh, setAutoRefresh] = useState<boolean>(false);
-
-    // 🆕 Dodaj TUTAJ funkcję checkForUpdates:
-    const checkForUpdates = async () => {
-        try {
-            const apiUrl = import.meta.env.VITE_API_URL;
-            const res = await fetch(apiUrl, { method: 'HEAD' });
-            const serverTimestamp = res.headers.get('x-last-modified');
-
-            if (serverTimestamp) {
-                const serverDate = new Date(parseInt(serverTimestamp, 10));
-                if (!lastUpdated || serverDate > lastUpdated) {
-                    console.log("🔁 Aktualizacja danych (zmiany na backendzie)");
-                    await fetchData();
-                } else {
-                    console.log("✅ Brak zmian na backendzie");
-                }
-            }
-        } catch (err) {
-            console.error("❌ Błąd przy sprawdzaniu timestampu:", err);
-        }
-    };
+    const ws = useRef<WebSocket | null>(null);
 
     const fetchData = async () => {
         setLoading(true);
         try {
             const apiUrl = import.meta.env.VITE_API_URL;
-            if (!apiUrl) {
-                throw new Error('API URL is not defined in environment variables');
-            }
+            if (!apiUrl) throw new Error('API URL not set');
 
             const res = await fetch(apiUrl);
-            if (!res.ok) {
-                throw new Error(`HTTP error! status: ${res.status}`);
-            }
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
             const data: ChartItem[] = await res.json();
             setCharts(data);
             setLastUpdated(new Date());
@@ -69,16 +46,44 @@ export default function NotionChart() {
         }
     };
 
-    // Efekt uruchamiający autoodświeżanie
-    useEffect(() => {
-    if (autoRefresh) {
-        checkForUpdates(); // pierwszy raz od razu
-        const intervalId = setInterval(checkForUpdates, 2000); // sprawdzaj co 2 sekundy
-        return () => clearInterval(intervalId);
-    }
-}, [autoRefresh, lastUpdated]); // Zależność od stanu autoRefresh
+    // Inicjalizacja WebSocket
+   useEffect(() => {
+    if (!autoRefresh) return;
 
-    // Dodanie efektu, który pobiera dane tylko raz przy pierwszym renderowaniu
+    const wsUrl = import.meta.env.VITE_WS_URL;
+    if (!wsUrl) {
+        console.error("❌ Brak WebSocket URL w środowisku");
+        return;
+    }
+
+    const socket = new WebSocket(wsUrl);
+
+    socket.onopen = () => {
+        console.log('✅ Połączono z WebSocketem');
+    };
+
+    socket.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        if (message.type === 'update') {
+            console.log('🔁 Otrzymano powiadomienie o zmianach z WebSocket — pobieram dane...');
+            fetchData();
+        }
+    };
+
+    socket.onerror = (error) => {
+        console.error('❌ Błąd WebSocket:', error);
+    };
+
+    socket.onclose = () => {
+        console.warn('⚠️ Połączenie z WebSocket zamknięte');
+    };
+
+    return () => {
+        socket.close();
+    };
+}, [autoRefresh]);
+
+    // Pobierz dane przy pierwszym załadowaniu komponentu
     useEffect(() => {
         fetchData();
     }, []);
@@ -102,7 +107,7 @@ export default function NotionChart() {
                         checked={autoRefresh}
                         onChange={(e) => setAutoRefresh(e.target.checked)}
                     />
-                    Autoodświeżanie
+                    Autoodświeżanie (WebSocket)
                 </label>
             </div>
 
@@ -133,9 +138,7 @@ export default function NotionChart() {
                                 options={{
                                     cutout: '75%',
                                     plugins: {
-                                        datalabels: {
-                                            display: false
-                                        },
+                                        datalabels: { display: false },
                                         tooltip: {
                                             callbacks: {
                                                 label: (context) => {

@@ -26,36 +26,12 @@ interface ApiResponse {
     charts: ChartItem[];
 }
 
-interface ChangesMap {
-    [chartTitle: string]: {
-        [label: string]: number;
-    };
-}
-
 export default function NotionChart() {
     const [charts, setCharts] = useState<ChartItem[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
     const [selectedBases, setSelectedBases] = useState<string[]>(['all']);
     const ws = useRef<WebSocket | null>(null);
-
-    const updateChartsByChanges = (changes: ChangesMap): void => {
-        setCharts(prevCharts =>
-            prevCharts.map(chart => {
-                if (changes[chart.title]) {
-                    const newData = chart.data.map(d => {
-                        if (changes[chart.title][d.label] !== undefined) {
-                            return { label: d.label, value: changes[chart.title][d.label] };
-                        }
-                        return d;
-                    });
-                    return { ...chart, data: newData };
-                }
-                return chart;
-            })
-        );
-        setLastUpdated(new Date());
-    };
 
     const fetchData = async (): Promise<void> => {
         setLoading(true);
@@ -94,19 +70,7 @@ export default function NotionChart() {
             const message = JSON.parse(event.data);
             if (message.type === 'update') {
                 console.log('🔁 Zmiana danych — odświeżam wykresy...');
-                try {
-                    const apiUrl = import.meta.env.VITE_API_URL;
-                    if (!apiUrl) throw new Error('API URL not set');
-
-                    const res = await fetch(apiUrl);
-                    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-
-                    const json: ApiResponse = await res.json();
-                    setCharts(json.charts || []);
-                    setLastUpdated(new Date());
-                } catch (err) {
-                    console.error('❌ Błąd podczas pobierania danych przez WebSocket:', err);
-                }
+                fetchData();
             }
         };
 
@@ -147,27 +111,44 @@ export default function NotionChart() {
         }
     };
 
-    // Filtrowanie
+    // Filtrowanie baz
     const filteredCharts: ChartItem[] =
         selectedBases.includes('all')
             ? charts
             : charts.filter(chart => selectedBases.includes(chart.title.split('::')[0]));
 
-    // Grupowanie według bazy i sortowanie po polu slot
-    const groupedCharts: Record<string, ChartItem[]> = {};
+    // Grupowanie po bazie i slocie rodzica + przypisywanie subtasków
+    const groupedByBaseAndSlot: Record<string, { [slot: number]: { parent: ChartItem; subtasks: ChartItem[] } }> = {};
+
+    // Najpierw dodajemy rodziców
     filteredCharts.forEach(chart => {
         const baseName = chart.title.split('::')[0];
-        if (!groupedCharts[baseName]) groupedCharts[baseName] = [];
-        groupedCharts[baseName].push(chart);
+        if (!groupedByBaseAndSlot[baseName]) groupedByBaseAndSlot[baseName] = {};
+
+        if (chart.slot !== null) {
+            groupedByBaseAndSlot[baseName][chart.slot] = { parent: chart, subtasks: [] };
+        }
     });
 
-    // Sortowanie po slot w każdej bazie
-    Object.keys(groupedCharts).forEach(baseName => {
-        groupedCharts[baseName].sort((a, b) => {
-            const slotA = a.slot ?? 0;
-            const slotB = b.slot ?? 0;
-            return slotA - slotB;
-        });
+    // Następnie dodajemy subtaski (slot === null) do najbliższego poprzedniego rodzica tej samej bazy
+    filteredCharts.forEach((chart, index) => {
+        if (chart.slot === null) {
+            const baseName = chart.title.split('::')[0];
+            for (let i = index - 1; i >= 0; i--) {
+                const prev = filteredCharts[i];
+                if (prev.slot !== null && prev.title.split('::')[0] === baseName) {
+                    groupedByBaseAndSlot[baseName][prev.slot].subtasks.push(chart);
+                    break;
+                }
+            }
+        }
+    });
+
+    // Sortowanie slotów w każdej bazie
+    Object.keys(groupedByBaseAndSlot).forEach(baseName => {
+        const sorted = Object.entries(groupedByBaseAndSlot[baseName])
+            .sort(([slotA], [slotB]) => Number(slotA) - Number(slotB));
+        groupedByBaseAndSlot[baseName] = Object.fromEntries(sorted);
     });
 
     return (
@@ -194,23 +175,39 @@ export default function NotionChart() {
                 </p>
             )}
 
-            {/* Grupowanie według baz */}
-            {Object.entries(groupedCharts).map(([baseName, baseCharts]) => (
+            {/* Grupowanie i renderowanie wykresów */}
+            {Object.entries(groupedByBaseAndSlot).map(([baseName, slots]) => (
                 <div key={baseName} className="mb-8">
                     <h2 className="text-lg font-bold mb-4">{baseName}</h2>
                     <div className="chart-grid">
-                        {baseCharts.map((chart, index) => {
-                            const total = chart.data.reduce((sum, d) => sum + (d?.value ?? 0), 0);
+                        {Object.values(slots).map(({ parent, subtasks }) => {
+                            // Łączenie danych rodzica i subtasków
+                            const combinedData: ChartDataPoint[] = [];
+
+                            parent.data.forEach(d => combinedData.push({ ...d }));
+
+                            subtasks.forEach(sub => {
+                                sub.data.forEach(sd => {
+                                    const existing = combinedData.find(c => c.label === sd.label);
+                                    if (existing) {
+                                        existing.value += sd.value;
+                                    } else {
+                                        combinedData.push({ ...sd });
+                                    }
+                                });
+                            });
+
+                            const total = combinedData.reduce((sum, d) => sum + (d?.value ?? 0), 0);
 
                             return (
-                                <div key={index} className="chart-container">
-                                    <h3 className="chart-title">{chart.title.split('::')[1]}</h3>
+                                <div key={parent.slot} className="chart-container">
+                                    <h3 className="chart-title">{parent.title.split('::')[1]}</h3>
                                     <Doughnut
                                         data={{
-                                            labels: chart.data.map(d => d.label),
+                                            labels: combinedData.map(d => d.label),
                                             datasets: [
                                                 {
-                                                    data: chart.data.map(d => d.value),
+                                                    data: combinedData.map(d => d.value),
                                                     backgroundColor: ['#94999dff', '#36a2eb', '#ff4069', '#277f53'],
                                                     borderWidth: 0,
                                                 }
@@ -224,7 +221,7 @@ export default function NotionChart() {
                                                     callbacks: {
                                                         label: (context) => {
                                                             const label = context.label || '';
-                                                            const value = chart.data.find(item => item.label === label)?.value || 0;
+                                                            const value = combinedData.find(item => item.label === label)?.value || 0;
                                                             const percentage = total > 0 ? ((value / total) * 100).toFixed(0) : '0';
                                                             return `${label} ${value} (${percentage}%)`;
                                                         }

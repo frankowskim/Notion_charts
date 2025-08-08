@@ -30,15 +30,13 @@ export default function NotionChart() {
     const [charts, setCharts] = useState<ChartItem[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-    const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
+    const [selectedBase, setSelectedBase] = useState<string>('all');
     const ws = useRef<WebSocket | null>(null);
 
-    // Aktualizuj tylko zmienione wykresy, na podstawie mapy zmian
     const updateChartsByChanges = (changes: ChangesMap) => {
         setCharts(prevCharts => {
             const updatedCharts = prevCharts.map(chart => {
                 if (changes[chart.title]) {
-                    // Mapuj dane wykresu aktualizując wartości wg zmian
                     const newData = chart.data.map(d => {
                         if (changes[chart.title][d.label] !== undefined) {
                             return { label: d.label, value: changes[chart.title][d.label] };
@@ -65,8 +63,6 @@ export default function NotionChart() {
 
             const json = await res.json();
             const data: ChartItem[] = json.charts || [];
-            const changes: ChangesMap = json.changes || {};
-
             setCharts(data);
             setLastUpdated(new Date());
         } catch (err) {
@@ -76,10 +72,7 @@ export default function NotionChart() {
         }
     };
 
-    // Inicjalizacja WebSocket
     useEffect(() => {
-        if (!autoRefresh) return;
-
         const wsUrl = import.meta.env.VITE_WS_URL;
         if (!wsUrl) {
             console.error("❌ Brak WebSocket URL w środowisku");
@@ -96,7 +89,7 @@ export default function NotionChart() {
         socket.onmessage = async (event) => {
             const message = JSON.parse(event.data);
             if (message.type === 'update') {
-                console.log('🔁 Otrzymano powiadomienie o zmianach z WebSocket — pobieram dane...');
+                console.log('🔁 Zmiana danych — odświeżam wykresy...');
                 try {
                     const apiUrl = import.meta.env.VITE_API_URL;
                     if (!apiUrl) throw new Error('API URL not set');
@@ -106,8 +99,6 @@ export default function NotionChart() {
 
                     const json = await res.json();
                     const changes: ChangesMap = json.changes || {};
-
-                    // Aktualizuj tylko wykresy które się zmieniły
                     updateChartsByChanges(changes);
                 } catch (err) {
                     console.error('❌ Błąd podczas pobierania danych przez WebSocket:', err);
@@ -126,9 +117,8 @@ export default function NotionChart() {
         return () => {
             socket.close();
         };
-    }, [autoRefresh]);
+    }, []);
 
-    // Pobierz dane przy pierwszym załadowaniu komponentu
     useEffect(() => {
         fetchData();
     }, []);
@@ -136,24 +126,29 @@ export default function NotionChart() {
     if (loading) return <p>⏳ Ładowanie danych z Notion...</p>;
     if (!charts || charts.length === 0) return <p>⚠️ Brak danych do wyświetlenia.</p>;
 
+    // Lista baz — zakładam format "Baza::Nazwa wykresu"
+    const baseList = Array.from(new Set(charts.map(chart => chart.title.split('::')[0])));
+
+    // Filtrowanie
+    const displayedCharts = selectedBase === 'all'
+        ? charts
+        : charts.filter(chart => chart.title.split('::')[0] === selectedBase);
+
     return (
         <div>
-            <div className="flex justify-between items-center mb-4">
-                <button
-                    className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-                    onClick={fetchData}
+            {/* Dropdown wyboru bazy */}
+            <div className="flex items-center mb-4">
+                <label className="mr-2">Wybierz bazę:</label>
+                <select
+                    value={selectedBase}
+                    onChange={(e) => setSelectedBase(e.target.value)}
+                    className="border rounded px-2 py-1"
                 >
-                    🔄 Odśwież dane
-                </button>
-                <label className="flex items-center">
-                    <input
-                        type="checkbox"
-                        className="mr-2"
-                        checked={autoRefresh}
-                        onChange={(e) => setAutoRefresh(e.target.checked)}
-                    />
-                    Autoodświeżanie (WebSocket)
-                </label>
+                    <option value="all">Wszystkie</option>
+                    {baseList.map(base => (
+                        <option key={base} value={base}>{base}</option>
+                    ))}
+                </select>
             </div>
 
             {lastUpdated && (
@@ -163,7 +158,7 @@ export default function NotionChart() {
             )}
 
             <div className="chart-grid">
-                {charts.map((chart, index) => {
+                {displayedCharts.map((chart, index) => {
                     const total = chart.data.reduce((sum, d) => sum + (d?.value ?? 0), 0);
 
                     return (

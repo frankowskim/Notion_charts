@@ -130,7 +130,7 @@ export default function NotionChart() {
         }
     });
 
-    // Następnie dodajemy subtaski (slot === null) do najbliższego poprzedniego rodzica tej samej bazy
+    // Dodajemy subtaski (slot === null) do najbliższego poprzedniego rodzica tej samej bazy
     filteredCharts.forEach((chart, index) => {
         if (chart.slot === null) {
             const baseName = chart.title.split('::')[0];

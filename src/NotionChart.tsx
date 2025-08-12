@@ -7,12 +7,14 @@ import {
   Legend
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   DndContext,
-  closestCenter,
-  PointerSensor,
   useSensor,
   useSensors,
+  PointerSensor,
+  KeyboardSensor,
+  closestCenter,
   DragEndEvent,
 } from '@dnd-kit/core';
 import {
@@ -22,6 +24,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+
 import './NotionChart.css';
 
 ChartJS.register(ArcElement, Tooltip, Legend, ChartDataLabels);
@@ -63,17 +66,17 @@ function SortableBase({ id, baseName, items }: SortableBaseProps) {
     transform: CSS.Transform.toString(transform),
     transition,
     zIndex: isDragging ? 999 : undefined,
-    boxShadow: isDragging ? '0 4px 8px rgba(0,0,0,0.2)' : undefined,
+    opacity: isDragging ? 0.8 : 1,
     cursor: 'grab',
-    backgroundColor: 'white',
-    padding: '12px',
-    marginBottom: '12px',
-    borderRadius: '8px',
-    border: '1px solid #ccc',
   };
 
+  const totalSum = items.reduce(
+    (sum, chart) => sum + chart.data.reduce((s, d) => s + (d.value ?? 0), 0),
+    0
+  );
+
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="sortable-base">
       <h2 className="text-lg font-bold mb-4 cursor-grab">{baseName}</h2>
       <div className="chart-grid">
         {items.map((chart) => {
@@ -138,7 +141,9 @@ export default function NotionChart() {
   const [loading, setLoading] = useState<boolean>(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [selectedBases, setSelectedBases] = useState<string[]>(['all']);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [orderedBases, setOrderedBases] = useState<string[]>([]);
+
   const ws = useRef<WebSocket | null>(null);
 
   const fetchData = async (): Promise<void> => {
@@ -154,9 +159,15 @@ export default function NotionChart() {
       setCharts(json.charts || []);
       setLastUpdated(new Date());
 
-      // Initialize order if empty
-      const bases = Array.from(new Set(json.charts.map(c => c.title.split('::')[0])));
-      setOrderedBases(prev => prev.length ? prev.filter(b => bases.includes(b)) : bases);
+      // Aktualizacja orderedBases na podstawie pobranych danych
+      const bases = Array.from(new Set((json.charts || []).map(c => c.title.split('::')[0])));
+      setOrderedBases(prev => {
+        if (prev.length) {
+          // Usuwamy bazy, które już nie istnieją
+          return prev.filter(b => bases.includes(b));
+        }
+        return bases;
+      });
     } catch (err) {
       console.error('❌ Błąd podczas pobierania danych:', err);
     } finally {
@@ -190,6 +201,7 @@ export default function NotionChart() {
     return () => {
       socket.close();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -202,6 +214,7 @@ export default function NotionChart() {
   const baseList: string[] = Array.from(new Set(charts.map(c => c.title.split('::')[0])));
   const allSelected = selectedBases.includes('all') || selectedBases.length === baseList.length;
 
+  // Funkcja do wyboru baz (checkboxy)
   const toggleBase = (base: string) => {
     if (base === 'all') {
       setSelectedBases(['all']);
@@ -224,53 +237,91 @@ export default function NotionChart() {
     }
   };
 
-  // Filter charts by selected bases
+  // Filtracja wykresów wg wybranych baz
   const filteredCharts = selectedBases.includes('all')
     ? charts
     : charts.filter(c => selectedBases.includes(c.title.split('::')[0]));
 
-  // Group charts by baseName
+  // Grupowanie wg bazy
   const grouped: Record<string, ChartItem[]> = {};
   filteredCharts.forEach(c => {
     const baseName = c.title.split('::')[0];
     if (!grouped[baseName]) grouped[baseName] = [];
     grouped[baseName].push(c);
   });
-
-  // Sort each group's charts by slot
+  // Sortowanie wykresów wg slotu
   Object.keys(grouped).forEach(baseName => {
     grouped[baseName].sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0));
   });
 
-  // Sort bases according to orderedBases, and filter only selected
-  const displayedBases = orderedBases.filter(b => selectedBases.includes('all') || selectedBases.includes(b));
+  // Lista baz do wyświetlenia w kolejności orderedBases, tylko te które są w selectedBases
+  const displayedBases = orderedBases.filter(b => (allSelected || selectedBases.includes(b)));
 
-  // DnD sensors
+  // DnD-kit sensors
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor)
   );
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
-      const oldIndex = orderedBases.indexOf(active.id as string);
-      const newIndex = orderedBases.indexOf(over.id as string);
-      setOrderedBases(arrayMove(orderedBases, oldIndex, newIndex));
+      setOrderedBases((items) => {
+        const oldIndex = items.indexOf(active.id as string);
+        const newIndex = items.indexOf(over.id as string);
+        return arrayMove(items, oldIndex, newIndex);
+      });
     }
   };
 
   return (
     <div>
-      {/* Multi-select dropdown */}
+      {/* Dropdown wyboru baz */}
       <div className="relative inline-block mb-4">
         <button
           type="button"
-          onClick={() => {}}
-          className="border rounded-lg px-3 py-2 bg-white shadow-sm min-w-[200px]"
+          onClick={() => setDropdownOpen(o => !o)}
+          className="border rounded-lg px-3 py-2 bg-white shadow-sm hover:border-gray-400 focus:outline-none min-w-[200px] flex justify-between items-center"
         >
-          {/* Just placeholder - dropdown can be implemented similarly as before if needed */}
           {allSelected ? 'Wszystkie bazy' : `${selectedBases.length} wybrane`}
+          <span className={`ml-2 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}>▼</span>
         </button>
+        <AnimatePresence>
+          {dropdownOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -5 }}
+              transition={{ duration: 0.15 }}
+              className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto"
+            >
+              <div className="px-3 py-2 border-b border-gray-200">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="rounded"
+                    checked={allSelected}
+                    onChange={() => toggleBase('all')}
+                  />
+                  <span className="text-sm font-medium">Wszystkie</span>
+                </label>
+              </div>
+              {baseList.map((b) => (
+                <div key={b} className="px-3 py-2 hover:bg-gray-50">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="rounded"
+                      checked={selectedBases.includes(b) || allSelected}
+                      onChange={() => toggleBase(b)}
+                    />
+                    <span className="text-sm">{b}</span>
+                  </label>
+                </div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {lastUpdated && (
@@ -279,9 +330,8 @@ export default function NotionChart() {
         </p>
       )}
 
-      {selectedBases.length === 0 || (selectedBases.length === 1 && selectedBases[0] === '') ? (
-        <p>⚠️ Żadne bazy nie są wybrane.</p>
-      ) : displayedBases.length === 0 ? (
+      {/* Jeśli nie ma wybranych baz (czyli lista pusta), pokaż komunikat */}
+      {displayedBases.length === 0 ? (
         <p>⚠️ Brak wybranych baz do wyświetlenia.</p>
       ) : (
         <DndContext
@@ -293,14 +343,18 @@ export default function NotionChart() {
             items={displayedBases}
             strategy={verticalListSortingStrategy}
           >
-            {displayedBases.map(baseName => (
-              <SortableBase
-                key={baseName}
-                id={baseName}
-                baseName={baseName}
-                items={grouped[baseName]}
-              />
-            ))}
+            {displayedBases.map(baseName => {
+              const itemsForBase = grouped[baseName];
+              if (!itemsForBase) return null; // ochrona
+              return (
+                <SortableBase
+                  key={baseName}
+                  id={baseName}
+                  baseName={baseName}
+                  items={itemsForBase}
+                />
+              );
+            })}
           </SortableContext>
         </DndContext>
       )}

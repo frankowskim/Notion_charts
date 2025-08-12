@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, ChangeEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -20,9 +20,9 @@ interface ChartDataPoint {
 }
 
 interface ChartItem {
-  title: string; // "NazwaBazy::NazwaRodzica"
+  title: string;
   slot: number;
-  data: ChartDataPoint[]; // aggregated counts per status
+  data: ChartDataPoint[];
 }
 
 interface ApiResponse {
@@ -33,7 +33,7 @@ export default function NotionChart() {
   const [charts, setCharts] = useState<ChartItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [selectedBases, setSelectedBases] = useState<string[]>(['all']);
+  const [selectedBases, setSelectedBases] = useState<string[]>([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const ws = useRef<WebSocket | null>(null);
 
@@ -82,7 +82,6 @@ export default function NotionChart() {
     return () => {
       socket.close();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -93,31 +92,28 @@ export default function NotionChart() {
   if (!charts || charts.length === 0) return <p>⚠️ Brak danych do wyświetlenia.</p>;
 
   const baseList: string[] = Array.from(new Set(charts.map(c => c.title.split('::')[0])));
-  const allSelected = selectedBases.includes('all') || selectedBases.length === baseList.length;
+
+  const isAllSelected = selectedBases.length === baseList.length;
 
   const toggleBase = (base: string) => {
     if (base === 'all') {
-      setSelectedBases(['all']);
-      return;
-    }
-    if (selectedBases.includes('all')) {
-      setSelectedBases([base]);
-      return;
-    }
-    if (selectedBases.includes(base)) {
-      const newSel = selectedBases.filter(b => b !== base);
-      setSelectedBases(newSel.length ? newSel : ['all']);
-    } else {
-      const newSel = [...selectedBases, base];
-      if (newSel.length === baseList.length) {
-        setSelectedBases(['all']);
+      if (isAllSelected) {
+        setSelectedBases([]);
       } else {
-        setSelectedBases(newSel);
+        setSelectedBases([...baseList]);
       }
+    } else {
+      let updated: string[];
+      if (selectedBases.includes(base)) {
+        updated = selectedBases.filter(b => b !== base);
+      } else {
+        updated = [...selectedBases, base];
+      }
+      setSelectedBases(updated);
     }
   };
 
-  const filteredCharts = selectedBases.includes('all')
+  const filteredCharts = isAllSelected || selectedBases.length === 0
     ? charts
     : charts.filter(c => selectedBases.includes(c.title.split('::')[0]));
 
@@ -134,14 +130,18 @@ export default function NotionChart() {
 
   return (
     <div>
-      {/* Premium dropdown */}
+      {/* Dropdown z checkboxami */}
       <div className="relative inline-block mb-4">
         <button
           type="button"
           onClick={() => setDropdownOpen(o => !o)}
           className="border rounded-lg px-3 py-2 bg-white shadow-sm hover:border-gray-400 focus:outline-none min-w-[200px] flex justify-between items-center"
         >
-          {allSelected ? 'Wszystkie bazy' : `${selectedBases.length} wybrane`}
+          {isAllSelected
+            ? 'Wszystkie bazy'
+            : selectedBases.length > 0
+              ? selectedBases.join(', ')
+              : 'Wybierz...'}
           <span className={`ml-2 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}>▼</span>
         </button>
         <AnimatePresence>
@@ -158,7 +158,7 @@ export default function NotionChart() {
                   <input
                     type="checkbox"
                     className="rounded"
-                    checked={allSelected}
+                    checked={isAllSelected}
                     onChange={() => toggleBase('all')}
                   />
                   <span className="text-sm font-medium">Wszystkie</span>
@@ -170,7 +170,7 @@ export default function NotionChart() {
                     <input
                       type="checkbox"
                       className="rounded"
-                      checked={selectedBases.includes(b) || allSelected}
+                      checked={selectedBases.includes(b)}
                       onChange={() => toggleBase(b)}
                     />
                     <span className="text-sm">{b}</span>

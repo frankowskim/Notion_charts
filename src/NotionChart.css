@@ -86,3 +86,84 @@ input[type="checkbox"] {
     cursor: pointer;
 }
 
+
+/* NotionChart.css */
+
+/* Kontener wyboru baz */
+.base-selector {
+  position: relative;
+  display: inline-block;
+  width: 260px;
+  font-family: inherit;
+}
+
+/* Przyciski i etykieta */
+.base-selector button {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 14px;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.base-selector button:hover {
+  border-color: #999;
+}
+
+.base-selector button:focus {
+  outline: none;
+  border-color: #36a2eb;
+  box-shadow: 0 0 0 2px rgba(54, 162, 235, 0.2);
+}
+
+/* Dropdown */
+.base-selector .dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+}
+
+/* Opcje */
+.base-selector .option {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.2s;
+}
+
+.base-selector .option:hover {
+  background: #f3f4f6;
+}
+
+.base-selector .option input {
+  pointer-events: none;
+}
+
+/* Scrollbar estetyczny */
+.base-selector .dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.base-selector .dropdown::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+
+.base-selector .dropdown::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+

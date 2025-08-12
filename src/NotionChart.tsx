@@ -7,6 +7,7 @@ import {
   Legend
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
+import { motion, AnimatePresence } from 'framer-motion';
 import './NotionChart.css';
 
 ChartJS.register(ArcElement, Tooltip, Legend, ChartDataLabels);
@@ -33,6 +34,7 @@ export default function NotionChart() {
   const [loading, setLoading] = useState<boolean>(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [selectedBases, setSelectedBases] = useState<string[]>(['all']);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const ws = useRef<WebSocket | null>(null);
 
   const fetchData = async (): Promise<void> => {
@@ -55,7 +57,6 @@ export default function NotionChart() {
   };
 
   useEffect(() => {
-    // WebSocket auto-refresh — on 'update' message just re-fetch (server sends only when data changed)
     const wsUrl = import.meta.env.VITE_WS_URL;
     if (!wsUrl) {
       console.warn('Brak VITE_WS_URL — WebSocket wyłączony');
@@ -71,12 +72,9 @@ export default function NotionChart() {
       try {
         const msg = JSON.parse(ev.data);
         if (msg?.type === 'update') {
-          // backend signaled update -> fetch new aggregated charts
           fetchData();
         }
-      } catch (e) {
-        // ignore non-json messages
-      }
+      } catch (e) {}
     };
     socket.onerror = (e) => console.error('❌ WebSocket error', e);
     socket.onclose = () => console.warn('⚠️ WebSocket closed');
@@ -94,25 +92,35 @@ export default function NotionChart() {
   if (loading) return <p>⏳ Ładowanie danych z Notion...</p>;
   if (!charts || charts.length === 0) return <p>⚠️ Brak danych do wyświetlenia.</p>;
 
-  // list of bases extracted from title "BaseName::ParentTitle"
   const baseList: string[] = Array.from(new Set(charts.map(c => c.title.split('::')[0])));
+  const allSelected = selectedBases.includes('all') || selectedBases.length === baseList.length;
 
-  const handleBaseChange = (e: ChangeEvent<HTMLSelectElement>): void => {
-    const opts = e.target.options;
-    const sel: string[] = [];
-    for (let i = 0; i < opts.length; i++) {
-      if (opts[i].selected) sel.push(opts[i].value);
+  const toggleBase = (base: string) => {
+    if (base === 'all') {
+      setSelectedBases(['all']);
+      return;
     }
-    if (sel.includes('all')) setSelectedBases(['all']);
-    else setSelectedBases(sel);
+    if (selectedBases.includes('all')) {
+      setSelectedBases([base]);
+      return;
+    }
+    if (selectedBases.includes(base)) {
+      const newSel = selectedBases.filter(b => b !== base);
+      setSelectedBases(newSel.length ? newSel : ['all']);
+    } else {
+      const newSel = [...selectedBases, base];
+      if (newSel.length === baseList.length) {
+        setSelectedBases(['all']);
+      } else {
+        setSelectedBases(newSel);
+      }
+    }
   };
 
-  // Filter charts by selected bases
   const filteredCharts = selectedBases.includes('all')
     ? charts
     : charts.filter(c => selectedBases.includes(c.title.split('::')[0]));
 
-  // Group by baseName and then map slot -> chart
   const grouped: Record<string, ChartItem[]> = {};
   filteredCharts.forEach(c => {
     const baseName = c.title.split('::')[0];
@@ -120,19 +128,58 @@ export default function NotionChart() {
     grouped[baseName].push(c);
   });
 
-  // Sort each group's charts by slot
   Object.keys(grouped).forEach(baseName => {
     grouped[baseName].sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0));
   });
 
   return (
     <div>
-      <div className="flex items-center mb-4">
-        <label className="mr-2">Wybierz bazy:</label>
-        <select multiple value={selectedBases} onChange={handleBaseChange} className="border rounded px-2 py-1">
-          <option value="all">Wszystkie</option>
-          {baseList.map(b => <option key={b} value={b}>{b}</option>)}
-        </select>
+      {/* Premium dropdown */}
+      <div className="relative inline-block mb-4">
+        <button
+          type="button"
+          onClick={() => setDropdownOpen(o => !o)}
+          className="border rounded-lg px-3 py-2 bg-white shadow-sm hover:border-gray-400 focus:outline-none min-w-[200px] flex justify-between items-center"
+        >
+          {allSelected ? 'Wszystkie bazy' : `${selectedBases.length} wybrane`}
+          <span className={`ml-2 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}>▼</span>
+        </button>
+        <AnimatePresence>
+          {dropdownOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -5 }}
+              transition={{ duration: 0.15 }}
+              className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto"
+            >
+              <div className="px-3 py-2 border-b border-gray-200">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="rounded"
+                    checked={allSelected}
+                    onChange={() => toggleBase('all')}
+                  />
+                  <span className="text-sm font-medium">Wszystkie</span>
+                </label>
+              </div>
+              {baseList.map((b) => (
+                <div key={b} className="px-3 py-2 hover:bg-gray-50">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="rounded"
+                      checked={selectedBases.includes(b) || allSelected}
+                      onChange={() => toggleBase(b)}
+                    />
+                    <span className="text-sm">{b}</span>
+                  </label>
+                </div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {lastUpdated && (
@@ -147,7 +194,6 @@ export default function NotionChart() {
           <div className="chart-grid">
             {items.map((chart) => {
               const total = chart.data.reduce((s, d) => s + (d.value ?? 0), 0);
-              // Ensure ordering of statuses for consistent colors
               const labels = chart.data.map(d => d.label);
               const values = chart.data.map(d => d.value);
 

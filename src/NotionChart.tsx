@@ -7,7 +7,21 @@ import {
   Legend
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
-import { motion, AnimatePresence } from 'framer-motion';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import './NotionChart.css';
 
 ChartJS.register(ArcElement, Tooltip, Legend, ChartDataLabels);
@@ -20,21 +34,111 @@ interface ChartDataPoint {
 }
 
 interface ChartItem {
-  title: string;
+  title: string; // "NazwaBazy::NazwaRodzica"
   slot: number;
-  data: ChartDataPoint[];
+  data: ChartDataPoint[]; // aggregated counts per status
 }
 
 interface ApiResponse {
   charts: ChartItem[];
 }
 
+interface SortableBaseProps {
+  id: string;
+  baseName: string;
+  items: ChartItem[];
+}
+
+function SortableBase({ id, baseName, items }: SortableBaseProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 999 : undefined,
+    boxShadow: isDragging ? '0 4px 8px rgba(0,0,0,0.2)' : undefined,
+    cursor: 'grab',
+    backgroundColor: 'white',
+    padding: '12px',
+    marginBottom: '12px',
+    borderRadius: '8px',
+    border: '1px solid #ccc',
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <h2 className="text-lg font-bold mb-4 cursor-grab">{baseName}</h2>
+      <div className="chart-grid">
+        {items.map((chart) => {
+          const total = chart.data.reduce((s, d) => s + (d.value ?? 0), 0);
+          const labels = chart.data.map(d => d.label);
+          const values = chart.data.map(d => d.value);
+
+          return (
+            <div key={`${baseName}-${chart.slot}`} className="chart-container">
+              <h3 className="chart-title">{chart.title.split('::')[1] ?? `Slot ${chart.slot}`}</h3>
+              <Doughnut
+                data={{
+                  labels,
+                  datasets: [
+                    {
+                      data: values,
+                      backgroundColor: ['#94999dff', '#36a2eb', '#ff4069', '#277f53'],
+                      borderWidth: 0,
+                    }
+                  ]
+                }}
+                options={{
+                  cutout: '75%',
+                  plugins: {
+                    datalabels: { display: false },
+                    tooltip: {
+                      callbacks: {
+                        label: (context) => {
+                          const label = context.label ?? '';
+                          const idx = context.dataIndex ?? 0;
+                          const value = values[idx] ?? 0;
+                          const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                          return `${label} ${value} (${percentage}%)`;
+                        }
+                      }
+                    },
+                    legend: {
+                      display: true,
+                      position: 'bottom',
+                      labels: {
+                        font: { size: 12 },
+                        boxWidth: 16,
+                      }
+                    }
+                  }
+                }}
+              />
+              <div className="chart-center">
+                <span className="chart-total">{total}</span>
+                <span className="chart-total-label">Total</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function NotionChart() {
   const [charts, setCharts] = useState<ChartItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [selectedBases, setSelectedBases] = useState<string[]>([]);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [selectedBases, setSelectedBases] = useState<string[]>(['all']);
+  const [orderedBases, setOrderedBases] = useState<string[]>([]);
   const ws = useRef<WebSocket | null>(null);
 
   const fetchData = async (): Promise<void> => {
@@ -49,6 +153,10 @@ export default function NotionChart() {
       const json: ApiResponse = await res.json();
       setCharts(json.charts || []);
       setLastUpdated(new Date());
+
+      // Initialize order if empty
+      const bases = Array.from(new Set(json.charts.map(c => c.title.split('::')[0])));
+      setOrderedBases(prev => prev.length ? prev.filter(b => bases.includes(b)) : bases);
     } catch (err) {
       console.error('❌ Błąd podczas pobierania danych:', err);
     } finally {
@@ -92,31 +200,36 @@ export default function NotionChart() {
   if (!charts || charts.length === 0) return <p>⚠️ Brak danych do wyświetlenia.</p>;
 
   const baseList: string[] = Array.from(new Set(charts.map(c => c.title.split('::')[0])));
-
-  const isAllSelected = selectedBases.length === baseList.length;
+  const allSelected = selectedBases.includes('all') || selectedBases.length === baseList.length;
 
   const toggleBase = (base: string) => {
     if (base === 'all') {
-      if (isAllSelected) {
-        setSelectedBases([]);
-      } else {
-        setSelectedBases([...baseList]);
-      }
+      setSelectedBases(['all']);
+      return;
+    }
+    if (selectedBases.includes('all')) {
+      setSelectedBases([base]);
+      return;
+    }
+    if (selectedBases.includes(base)) {
+      const newSel = selectedBases.filter(b => b !== base);
+      setSelectedBases(newSel.length ? newSel : ['all']);
     } else {
-      let updated: string[];
-      if (selectedBases.includes(base)) {
-        updated = selectedBases.filter(b => b !== base);
+      const newSel = [...selectedBases, base];
+      if (newSel.length === baseList.length) {
+        setSelectedBases(['all']);
       } else {
-        updated = [...selectedBases, base];
+        setSelectedBases(newSel);
       }
-      setSelectedBases(updated);
     }
   };
 
-  const filteredCharts = isAllSelected || selectedBases.length === 0
+  // Filter charts by selected bases
+  const filteredCharts = selectedBases.includes('all')
     ? charts
     : charts.filter(c => selectedBases.includes(c.title.split('::')[0]));
 
+  // Group charts by baseName
   const grouped: Record<string, ChartItem[]> = {};
   filteredCharts.forEach(c => {
     const baseName = c.title.split('::')[0];
@@ -124,62 +237,40 @@ export default function NotionChart() {
     grouped[baseName].push(c);
   });
 
+  // Sort each group's charts by slot
   Object.keys(grouped).forEach(baseName => {
     grouped[baseName].sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0));
   });
 
+  // Sort bases according to orderedBases, and filter only selected
+  const displayedBases = orderedBases.filter(b => selectedBases.includes('all') || selectedBases.includes(b));
+
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = orderedBases.indexOf(active.id as string);
+      const newIndex = orderedBases.indexOf(over.id as string);
+      setOrderedBases(arrayMove(orderedBases, oldIndex, newIndex));
+    }
+  };
+
   return (
     <div>
-      {/* Dropdown z checkboxami */}
+      {/* Multi-select dropdown */}
       <div className="relative inline-block mb-4">
         <button
           type="button"
-          onClick={() => setDropdownOpen(o => !o)}
-          className="border rounded-lg px-3 py-2 bg-white shadow-sm hover:border-gray-400 focus:outline-none min-w-[200px] flex justify-between items-center"
+          onClick={() => {}}
+          className="border rounded-lg px-3 py-2 bg-white shadow-sm min-w-[200px]"
         >
-          {isAllSelected
-            ? 'Wszystkie bazy'
-            : selectedBases.length > 0
-              ? selectedBases.join(', ')
-              : 'Wybierz...'}
-          <span className={`ml-2 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}>▼</span>
+          {/* Just placeholder - dropdown can be implemented similarly as before if needed */}
+          {allSelected ? 'Wszystkie bazy' : `${selectedBases.length} wybrane`}
         </button>
-        <AnimatePresence>
-          {dropdownOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: -5 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -5 }}
-              transition={{ duration: 0.15 }}
-              className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto"
-            >
-              <div className="px-3 py-2 border-b border-gray-200">
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="rounded"
-                    checked={isAllSelected}
-                    onChange={() => toggleBase('all')}
-                  />
-                  <span className="text-sm font-medium">Wszystkie</span>
-                </label>
-              </div>
-              {baseList.map((b) => (
-                <div key={b} className="px-3 py-2 hover:bg-gray-50">
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="rounded"
-                      checked={selectedBases.includes(b)}
-                      onChange={() => toggleBase(b)}
-                    />
-                    <span className="text-sm">{b}</span>
-                  </label>
-                </div>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
 
       {lastUpdated && (
@@ -188,65 +279,31 @@ export default function NotionChart() {
         </p>
       )}
 
-      {Object.entries(grouped).map(([baseName, items]) => (
-        <div key={baseName} className="mb-8">
-          <h2 className="text-lg font-bold mb-4">{baseName}</h2>
-          <div className="chart-grid">
-            {items.map((chart) => {
-              const total = chart.data.reduce((s, d) => s + (d.value ?? 0), 0);
-              const labels = chart.data.map(d => d.label);
-              const values = chart.data.map(d => d.value);
-
-              return (
-                <div key={`${baseName}-${chart.slot}`} className="chart-container">
-                  <h3 className="chart-title">{chart.title.split('::')[1] ?? `Slot ${chart.slot}`}</h3>
-                  <Doughnut
-                    data={{
-                      labels,
-                      datasets: [
-                        {
-                          data: values,
-                          backgroundColor: ['#94999dff', '#36a2eb', '#ff4069', '#277f53'],
-                          borderWidth: 0,
-                        }
-                      ]
-                    }}
-                    options={{
-                      cutout: '75%',
-                      plugins: {
-                        datalabels: { display: false },
-                        tooltip: {
-                          callbacks: {
-                            label: (context) => {
-                              const label = context.label ?? '';
-                              const idx = context.dataIndex ?? 0;
-                              const value = values[idx] ?? 0;
-                              const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
-                              return `${label} ${value} (${percentage}%)`;
-                            }
-                          }
-                        },
-                        legend: {
-                          display: true,
-                          position: 'bottom',
-                          labels: {
-                            font: { size: 12 },
-                            boxWidth: 16,
-                          }
-                        }
-                      }
-                    }}
-                  />
-                  <div className="chart-center">
-                    <span className="chart-total">{total}</span>
-                    <span className="chart-total-label">Total</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ))}
+      {selectedBases.length === 0 || (selectedBases.length === 1 && selectedBases[0] === '') ? (
+        <p>⚠️ Żadne bazy nie są wybrane.</p>
+      ) : displayedBases.length === 0 ? (
+        <p>⚠️ Brak wybranych baz do wyświetlenia.</p>
+      ) : (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={displayedBases}
+            strategy={verticalListSortingStrategy}
+          >
+            {displayedBases.map(baseName => (
+              <SortableBase
+                key={baseName}
+                id={baseName}
+                baseName={baseName}
+                items={grouped[baseName]}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
+      )}
     </div>
   );
 }

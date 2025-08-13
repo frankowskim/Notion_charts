@@ -81,7 +81,7 @@ function SortableBase({ id, baseName, items }: SortableBaseProps) {
             datasets: [
               {
                 data: chart.data.map(d => d.value),
-                backgroundColor: ['#94999dff', '#36a2eb', '#ff4069', '#277f53'],
+                backgroundColor: ['#94999dff', '#ff4069', '#36a2eb', '#277f53'],
                 borderWidth: 0
               }
             ]
@@ -159,9 +159,45 @@ export default function NotionChart() {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+useEffect(() => {
+  // Funkcja inicjalizująca WebSocket
+  const wsUrl = import.meta.env.VITE_WS_URL;
+  if (!wsUrl) return;
+
+  const ws = new WebSocket(wsUrl);
+
+  ws.onopen = () => {
+    console.log('WebSocket połączony');
+  };
+
+  ws.onmessage = (event) => {
+    try {
+      const json: ApiResponse = JSON.parse(event.data);
+      setCharts(json.charts || []);
+      setLastUpdated(new Date());
+
+      // Jeśli nie mamy jeszcze kolejności baz, ustaw ją
+      if (!orderedBases.length && json.charts?.length) {
+        const bases = Array.from(new Set(json.charts.map(c => c.title.split('::')[0])));
+        setOrderedBases(bases);
+      }
+    } catch (e) {
+      console.error('Błąd parsowania danych z WebSocket:', e);
+    }
+  };
+
+  ws.onerror = (err) => {
+    console.error('WebSocket error:', err);
+  };
+
+  ws.onclose = () => {
+    console.log('WebSocket rozłączony');
+  };
+
+  return () => {
+    ws.close();
+  };
+}, []);
 
   const baseList = Array.from(new Set(charts.map(c => c.title.split('::')[0])));
   const allSelected = selectedBases.includes('all') || selectedBases.length === baseList.length;

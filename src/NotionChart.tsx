@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { Doughnut } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -62,9 +62,6 @@ function SortableBase({ id, baseName, items }: SortableBaseProps) {
     isDragging,
   } = useSortable({ id });
 
-  // Ref do wszystkich wykresów w tej bazie
-  const chartRefs = useRef<Record<string, any>>({});
-
   return (
     <div
       ref={setNodeRef}
@@ -90,6 +87,7 @@ function SortableBase({ id, baseName, items }: SortableBaseProps) {
               },
             ],
           };
+
           const options: ChartOptions<"doughnut"> = {
             cutout: "75%",
             responsive: true,
@@ -115,32 +113,13 @@ function SortableBase({ id, baseName, items }: SortableBaseProps) {
             },
           };
 
-          const chartKey = `${baseName}-${chart.slot}`;
-          if (!chartRefs.current[chartKey])
-            chartRefs.current[chartKey] = React.createRef();
-
-          useEffect(() => {
-            const chartRef = chartRefs.current[chartKey].current;
-            if (chartRef) {
-              chartRef.data.datasets[0].data = chart.data.map((d) => d.value);
-              chartRef.update({
-                duration: 800,
-                easing: "easeOutCubic",
-              });
-            }
-          }, [chart.data]);
-
           return (
-            <div key={chartKey} className="chart-container">
+            <div key={`${baseName}-${chart.slot}`} className="chart-container">
               <h3 className="chart-title">
                 {chart.title.split("::")[1] || `Slot ${chart.slot}`}
               </h3>
               <div className="chart-wrapper">
-                <Doughnut
-                  ref={chartRefs.current[chartKey]}
-                  data={data}
-                  options={options}
-                />
+                <Doughnut data={data} options={options} />
                 <div className="chart-center">
                   <span className="chart-total">{total}</span>
                   <span className="chart-total-label">Total</span>
@@ -214,10 +193,13 @@ export default function NotionChart() {
               (c) => c.slot === newChart.slot && c.title === newChart.title
             );
             if (index >= 0) {
-              updatedCharts[index] = {
-                ...updatedCharts[index],
-                data: newChart.data,
-              };
+              const prevData = updatedCharts[index].data;
+              if (JSON.stringify(prevData) !== JSON.stringify(newChart.data)) {
+                updatedCharts[index] = {
+                  ...updatedCharts[index],
+                  data: newChart.data,
+                };
+              }
             } else {
               updatedCharts.push(newChart);
             }

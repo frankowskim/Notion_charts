@@ -1,9 +1,17 @@
 /* Kontenery wykresów */
 .chart-container {
-  width: 320px;
-  height: 200px;
-  margin-bottom: 2rem;
   position: relative;
+  width: 100%;
+  /* height można ustawić np. w proporcji do szerokości */
+  padding-top: 100%; /* kwadratowy kontener */
+}
+
+.chart-container canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
 }
 
 /* Tytuły wykresów */
@@ -42,7 +50,7 @@
 /* Grid wykresów */
 .chart-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 20px;
 }
 

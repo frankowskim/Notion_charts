@@ -62,6 +62,9 @@ function SortableBase({ id, baseName, items }: SortableBaseProps) {
     isDragging,
   } = useSortable({ id });
 
+  // Ref do wszystkich wykresów w tej bazie
+  const chartRefs = useRef<Record<string, any>>({});
+
   return (
     <div
       ref={setNodeRef}
@@ -112,14 +115,15 @@ function SortableBase({ id, baseName, items }: SortableBaseProps) {
             },
           };
 
-          const chartRef = useRef<any>(null);
+          const chartKey = `${baseName}-${chart.slot}`;
+          if (!chartRefs.current[chartKey])
+            chartRefs.current[chartKey] = React.createRef();
 
           useEffect(() => {
-            if (chartRef.current) {
-              chartRef.current.data.datasets[0].data = chart.data.map(
-                (d) => d.value
-              );
-              chartRef.current.update({
+            const chartRef = chartRefs.current[chartKey].current;
+            if (chartRef) {
+              chartRef.data.datasets[0].data = chart.data.map((d) => d.value);
+              chartRef.update({
                 duration: 800,
                 easing: "easeOutCubic",
               });
@@ -127,12 +131,16 @@ function SortableBase({ id, baseName, items }: SortableBaseProps) {
           }, [chart.data]);
 
           return (
-            <div key={`${baseName}-${chart.slot}`} className="chart-container">
+            <div key={chartKey} className="chart-container">
               <h3 className="chart-title">
                 {chart.title.split("::")[1] || `Slot ${chart.slot}`}
               </h3>
               <div className="chart-wrapper">
-                <Doughnut ref={chartRef} data={data} options={options} />
+                <Doughnut
+                  ref={chartRefs.current[chartKey]}
+                  data={data}
+                  options={options}
+                />
                 <div className="chart-center">
                   <span className="chart-total">{total}</span>
                   <span className="chart-total-label">Total</span>
@@ -206,13 +214,10 @@ export default function NotionChart() {
               (c) => c.slot === newChart.slot && c.title === newChart.title
             );
             if (index >= 0) {
-              const prevData = updatedCharts[index].data;
-              if (JSON.stringify(prevData) !== JSON.stringify(newChart.data)) {
-                updatedCharts[index] = {
-                  ...updatedCharts[index],
-                  data: newChart.data,
-                };
-              }
+              updatedCharts[index] = {
+                ...updatedCharts[index],
+                data: newChart.data,
+              };
             } else {
               updatedCharts.push(newChart);
             }

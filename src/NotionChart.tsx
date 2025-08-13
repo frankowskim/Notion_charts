@@ -4,8 +4,7 @@ import {
   Chart as ChartJS,
   ArcElement,
   Tooltip,
-  Legend,
-  ChartOptions
+  Legend
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 
@@ -27,6 +26,7 @@ import {
 } from '@dnd-kit/sortable';
 
 import { CSS } from '@dnd-kit/utilities';
+import './NotionChart.css';
 
 ChartJS.register(ArcElement, Tooltip, Legend, ChartDataLabels);
 
@@ -36,7 +36,7 @@ interface ChartDataPoint {
 }
 
 interface ChartItem {
-  title: string; // format: "BaseName::ChildName"
+  title: string;
   slot: number;
   data: ChartDataPoint[];
 }
@@ -66,21 +66,18 @@ function SortableBase({ id, baseName, items }: SortableBaseProps) {
     transition,
     zIndex: isDragging ? 999 : undefined,
     opacity: isDragging ? 0.8 : 1,
-    border: '1px solid #ccc',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
     backgroundColor: 'white',
-    cursor: 'grab',
+    borderRadius: '8px',
+    padding: '16px',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
   };
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <h2>{baseName}</h2>
-      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+      <h2 className="chart-title">{baseName}</h2>
+      <div className="chart-grid">
         {items.map(chart => {
           const total = chart.data.reduce((acc, d) => acc + d.value, 0);
-
           const data = {
             labels: chart.data.map(d => d.label),
             datasets: [
@@ -91,19 +88,15 @@ function SortableBase({ id, baseName, items }: SortableBaseProps) {
               }
             ]
           };
-
-          const options: ChartOptions<'doughnut'> = {
+          const options = {
             cutout: '75%',
             plugins: {
-              legend: {
-                display: true,
-                position: 'bottom' // literal type OK
-              },
+              legend: { display: true, position: 'bottom' as const },
               tooltip: {
                 callbacks: {
-                  label: (ctx) => {
+                  label: (ctx: any) => {
                     const label = ctx.label || '';
-                    const value = ctx.parsed as number || 0;
+                    const value = ctx.parsed || 0;
                     const percent = total > 0 ? Math.round((value / total) * 100) : 0;
                     return `${label} ${value} (${percent}%)`;
                   }
@@ -114,34 +107,12 @@ function SortableBase({ id, baseName, items }: SortableBaseProps) {
           };
 
           return (
-            <div
-              key={`${baseName}-${chart.slot}`}
-              style={{
-                width: 180,
-                position: 'relative',
-                textAlign: 'center',
-                boxShadow: '0 0 5px rgba(0,0,0,0.1)',
-                borderRadius: 8,
-                padding: 8,
-                backgroundColor: '#f9f9f9',
-              }}
-            >
-              <h3 style={{ fontSize: 14, marginBottom: 8 }}>
-                {chart.title.split('::')[1] || `Slot ${chart.slot}`}
-              </h3>
+            <div key={`${baseName}-${chart.slot}`} className="chart-container">
+              <h3 className="chart-title">{chart.title.split('::')[1] || `Slot ${chart.slot}`}</h3>
               <Doughnut data={data} options={options} />
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  fontWeight: 'bold',
-                  fontSize: 18,
-                  pointerEvents: 'none',
-                }}
-              >
-                {total}
+              <div className="chart-center">
+                <span className="chart-total">{total}</span>
+                <span className="chart-total-label">Total</span>
               </div>
             </div>
           );
@@ -158,6 +129,7 @@ export default function NotionChart() {
 
   const [selectedBases, setSelectedBases] = useState<string[]>(['all']);
   const [orderedBases, setOrderedBases] = useState<string[]>([]);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -182,25 +154,6 @@ export default function NotionChart() {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    const wsUrl = import.meta.env.VITE_WS_URL;
-    if (!wsUrl) return;
-
-    const socket = new WebSocket(wsUrl.startsWith('ws') ? wsUrl : `wss://${wsUrl}`);
-    socket.onopen = () => console.log('WebSocket connected');
-    socket.onmessage = (ev) => {
-      try {
-        const msg = JSON.parse(ev.data);
-        if (msg?.type === 'update') {
-          fetchData();
-        }
-      } catch {}
-    };
-    socket.onclose = () => console.warn('WebSocket closed');
-
-    return () => socket.close();
-  }, []);
 
   useEffect(() => {
     fetchData();
@@ -264,38 +217,39 @@ export default function NotionChart() {
   return (
     <div style={{ padding: 20 }}>
       <div style={{ marginBottom: 16 }}>
-        <strong>Wybierz bazy:</strong><br />
-        <label>
-          <input
-            type="checkbox"
-            checked={allSelected}
-            onChange={() => toggleBase('all')}
-          /> Wszystkie
-        </label>
-        {baseList.map(base => (
-          <label key={base} style={{ marginLeft: 12 }}>
-            <input
-              type="checkbox"
-              checked={selectedBases.includes(base) || allSelected}
-              onChange={() => toggleBase(base)}
-            /> {base}
-          </label>
-        ))}
+        <div className="base-selector">
+          <button onClick={() => setDropdownOpen(prev => !prev)}>
+            {allSelected ? 'Wszystkie bazy' : `${selectedBases.length} wybrane`}
+          </button>
+          {dropdownOpen && (
+            <div className="dropdown">
+              <div className="option" onClick={() => toggleBase('all')}>
+                <input type="checkbox" checked={allSelected} readOnly /> Wszystkie
+              </div>
+              {baseList.map(base => (
+                <div
+                  key={base}
+                  className="option"
+                  onClick={() => toggleBase(base)}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedBases.includes(base) || allSelected}
+                    readOnly
+                  /> {base}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <div style={{ marginBottom: 16, fontSize: 12, color: '#666' }}>
         Ostatnia aktualizacja: {lastUpdated?.toLocaleTimeString() || '-'}
       </div>
 
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext
-          items={displayedBases}
-          strategy={verticalListSortingStrategy}
-        >
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={displayedBases} strategy={verticalListSortingStrategy}>
           {displayedBases.map(baseName => {
             const itemsForBase = grouped[baseName];
             if (!itemsForBase) return null;

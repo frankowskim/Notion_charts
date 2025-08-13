@@ -1,28 +1,45 @@
-/* Kontenery wykresów */
-.chart-container {
-  width: 100%;
-  max-width: 320px;
-  margin-bottom: 2rem;
-  position: relative;
+.sortable-base {
+  background: #f5f5f5;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
-.chart-container canvas {
-  display: block;
-  width: 100% !important;
-  height: auto !important;
+.sortable-base.dragging {
+  opacity: 0.8;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-/* Tytuły wykresów */
 .chart-title {
-  font-weight: 600;
-  margin-bottom: 1rem;
-  color: #e0e0e0;
+  font-size: 16px;
+  margin-bottom: 12px;
+  text-align: center;
 }
 
-/* Centralny napis Total w wykresie */
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.chart-container {
+  position: relative;
+  height: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.chart-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
 .chart-center {
   position: absolute;
-  top: 53%;
+  top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   text-align: center;
@@ -30,142 +47,44 @@
 }
 
 .chart-total {
-  font-weight: 700;
-  font-size: 48px;
-  line-height: 1;
-  color: #f5f5f5;
-  font-family: "IBM Plex Sans", sans-serif;
+  font-size: 24px;
+  font-weight: bold;
   display: block;
-  margin-bottom: 4px;
 }
 
 .chart-total-label {
-  font-weight: 400;
-  font-size: 16px;
-  color: #aaa;
+  font-size: 12px;
+  color: #555;
 }
 
-/* Grid wykresów */
-.chart-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
-}
-
-@media (min-width: 500px) {
-  .chart-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (min-width: 800px) {
-  .chart-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (min-width: 1200px) {
-  .chart-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-/* Kontenery baz do przeciągania (DnD) */
-.sortable-base {
-  background-color: #2b2b2b;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
-  margin-bottom: 20px;
-  color: #e0e0e0;
-}
-
-.sortable-base.dragging {
-  z-index: 999;
-  opacity: 0.85;
-}
-
-/* Dropdown wyboru baz */
 .base-selector {
   position: relative;
   display: inline-block;
-  width: 260px;
-  font-family: inherit;
 }
 
 .base-selector button {
-  width: 100%;
-  padding: 8px 12px;
-  font-size: 14px;
-  background: #3a3a3a;
-  border: 1px solid #555;
-  border-radius: 6px;
-  text-align: left;
+  padding: 6px 12px;
   cursor: pointer;
-  color: #e0e0e0;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background: white;
 }
 
-.base-selector button:hover {
-  border-color: #888;
-}
-
-.base-selector button:focus {
-  outline: none;
-  border-color: #36a2eb;
-  box-shadow: 0 0 0 2px rgba(54, 162, 235, 0.4);
-}
-
-.base-selector .dropdown {
+.base-dropdown {
   position: absolute;
-  top: calc(100% + 4px);
+  top: 100%;
   left: 0;
-  right: 0;
-  max-height: 200px;
-  overflow-y: auto;
-  background: #3a3a3a;
-  border: 1px solid #555;
+  background: white;
+  border: 1px solid #ccc;
   border-radius: 6px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
-  z-index: 100;
-  color: #e0e0e0;
+  padding: 8px;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-.base-selector .option {
-  padding: 8px 12px;
+.base-dropdown label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 14px;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: background 0.2s;
-}
-
-.base-selector .option:hover {
-  background: #505050;
-}
-
-.base-selector .option input {
-  pointer-events: none;
-}
-
-/* Scrollbar dropdown */
-.base-selector .dropdown::-webkit-scrollbar {
-  width: 6px;
-}
-
-.base-selector .dropdown::-webkit-scrollbar-thumb {
-  background: #777;
-  border-radius: 3px;
-}
-
-.base-selector .dropdown::-webkit-scrollbar-thumb:hover {
-  background: #aaa;
-}
-
-/* Checkboxy */
-input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
-  accent-color: #36a2eb;
 }

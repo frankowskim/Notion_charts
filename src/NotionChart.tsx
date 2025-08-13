@@ -1,6 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Doughnut } from "react-chartjs-2";
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend,
+  ChartOptions,
+} from "chart.js";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 
 import {
@@ -81,23 +87,21 @@ function SortableBase({ id, baseName, items }: SortableBaseProps) {
               },
             ],
           };
-          const options = {
+          const options: ChartOptions<"doughnut"> = {
             cutout: "75%",
             responsive: true,
             maintainAspectRatio: false,
             animation: {
               duration: 800,
-              easing: "easeOutCubic" as const,
+              easing: "easeOutCubic",
             },
             plugins: {
-              legend: { display: true, position: "bottom" as const },
+              legend: { display: true, position: "bottom" },
               tooltip: {
                 callbacks: {
                   label: (ctx: any) => {
                     const label = ctx.label || "";
                     const value = ctx.parsed || 0;
-                    const total =
-                      ctx.chart._metasets[ctx.datasetIndex].total || 0;
                     const percent =
                       total > 0 ? Math.round((value / total) * 100) : 0;
                     return `${label} ${value} (${percent}%)`;
@@ -106,15 +110,29 @@ function SortableBase({ id, baseName, items }: SortableBaseProps) {
               },
               datalabels: { display: false },
             },
-          } as const;
+          };
+
+          const chartRef = useRef<any>(null);
+
+          useEffect(() => {
+            if (chartRef.current) {
+              chartRef.current.data.datasets[0].data = chart.data.map(
+                (d) => d.value
+              );
+              chartRef.current.update({
+                duration: 800,
+                easing: "easeOutCubic",
+              });
+            }
+          }, [chart.data]);
 
           return (
             <div key={`${baseName}-${chart.slot}`} className="chart-container">
               <h3 className="chart-title">
                 {chart.title.split("::")[1] || `Slot ${chart.slot}`}
               </h3>
-              <div className="chart-wrapper" style={{ position: "relative" }}>
-                <Doughnut data={data} options={options} />
+              <div className="chart-wrapper">
+                <Doughnut ref={chartRef} data={data} options={options} />
                 <div className="chart-center">
                   <span className="chart-total">{total}</span>
                   <span className="chart-total-label">Total</span>
@@ -171,7 +189,6 @@ export default function NotionChart() {
     if (!wsUrl) return;
 
     const ws = new WebSocket(wsUrl);
-
     ws.onopen = () => console.log("WebSocket połączony");
     ws.onclose = () => console.log("WebSocket rozłączony");
 
@@ -184,7 +201,6 @@ export default function NotionChart() {
 
         setCharts((prevCharts) => {
           const updatedCharts = [...prevCharts];
-
           newCharts.forEach((newChart) => {
             const index = updatedCharts.findIndex(
               (c) => c.slot === newChart.slot && c.title === newChart.title
@@ -192,13 +208,15 @@ export default function NotionChart() {
             if (index >= 0) {
               const prevData = updatedCharts[index].data;
               if (JSON.stringify(prevData) !== JSON.stringify(newChart.data)) {
-                updatedCharts[index] = newChart;
+                updatedCharts[index] = {
+                  ...updatedCharts[index],
+                  data: newChart.data,
+                };
               }
             } else {
               updatedCharts.push(newChart);
             }
           });
-
           return updatedCharts;
         });
 
@@ -284,7 +302,7 @@ export default function NotionChart() {
             ▼
           </button>
           {dropdownOpen && (
-            <div className="dropdown">
+            <div className="base-dropdown">
               <label>
                 <input
                   type="checkbox"

@@ -84,10 +84,10 @@ function SortableBase({ id, baseName, items }: SortableBaseProps) {
           const options = {
             cutout: "75%",
             responsive: true,
-            maintainAspectRatio: true,
+            maintainAspectRatio: false,
             animation: {
               duration: 800,
-              easing: "easeOutCubic" as const, // dodaj "as const"
+              easing: "easeOutCubic" as const,
             },
             plugins: {
               legend: { display: true, position: "bottom" as const },
@@ -106,14 +106,14 @@ function SortableBase({ id, baseName, items }: SortableBaseProps) {
               },
               datalabels: { display: false },
             },
-          } as const; // lub użyj "as ChartOptions<'doughnut'>"
+          } as const;
 
           return (
             <div key={`${baseName}-${chart.slot}`} className="chart-container">
               <h3 className="chart-title">
                 {chart.title.split("::")[1] || `Slot ${chart.slot}`}
               </h3>
-              <div className="chart-wrapper">
+              <div className="chart-wrapper" style={{ position: "relative" }}>
                 <Doughnut data={data} options={options} />
                 <div className="chart-center">
                   <span className="chart-total">{total}</span>
@@ -163,7 +163,7 @@ export default function NotionChart() {
   };
 
   useEffect(() => {
-    fetchData(); // pierwsze pobranie danych
+    fetchData();
   }, []);
 
   useEffect(() => {
@@ -284,7 +284,7 @@ export default function NotionChart() {
             ▼
           </button>
           {dropdownOpen && (
-            <div className="base-dropdown">
+            <div className="dropdown">
               <label>
                 <input
                   type="checkbox"

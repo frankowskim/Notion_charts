@@ -7,9 +7,9 @@
 }
 
 .chart-container canvas {
-display: block;
-width: 100% !important;
-height: auto !important;
+  display: block;
+  width: 100% !important;
+  height: auto !important;
 }
 
 /* Tytuły wykresów */

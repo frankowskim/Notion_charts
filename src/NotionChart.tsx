@@ -86,29 +86,30 @@ function SortableBase({ id, baseName, items }: SortableBaseProps) {
               }
             ]
           };
-          const options = {
-            cutout: '75%',
-            responsive: true,
-            maintainAspectRatio: false,
-           nimation: {
-    duration: 800, // płynna zmiana wartości
-    easing: 'easeOutCubic',
+const options = {
+  cutout: '75%',
+  responsive: true,
+  maintainAspectRatio: false,
+  animation: {
+    duration: 800,
+    easing: 'easeOutCubic' as const // dodaj "as const"
   },
-            plugins: {
-              legend: { display: true, position: 'bottom' as const },
-              tooltip: {
-                callbacks: {
-                  label: (ctx: any) => {
-                    const label = ctx.label || '';
-                    const value = ctx.parsed || 0;
-                    const percent = total > 0 ? Math.round((value / total) * 100) : 0;
-                    return `${label} ${value} (${percent}%)`;
-                  }
-                }
-              },
-              datalabels: { display: false }
-            }
-          };
+  plugins: {
+    legend: { display: true, position: 'bottom' as const },
+    tooltip: {
+      callbacks: {
+        label: (ctx: any) => {
+          const label = ctx.label || '';
+          const value = ctx.parsed || 0;
+          const total = ctx.chart._metasets[ctx.datasetIndex].total || 0;
+          const percent = total > 0 ? Math.round((value / total) * 100) : 0;
+          return `${label} ${value} (${percent}%)`;
+        }
+      }
+    },
+    datalabels: { display: false }
+  }
+} as const; // lub użyj "as ChartOptions<'doughnut'>"
 
           return (
             <div key={`${baseName}-${chart.slot}`} className="chart-container">
@@ -140,7 +141,6 @@ export default function NotionChart() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const fetchData = async () => {
-    setLoading(true);
     try {
       const apiUrl = import.meta.env.VITE_API_URL;
       if (!apiUrl) throw new Error('API URL not set');
@@ -163,55 +163,52 @@ export default function NotionChart() {
     }
   };
 
-useEffect(() => {
-  const wsUrl = import.meta.env.VITE_WS_URL;
-  if (!wsUrl) return;
+  useEffect(() => {
+    fetchData(); // pierwsze pobranie danych
+  }, []);
 
-  const ws = new WebSocket(wsUrl);
+  useEffect(() => {
+    const wsUrl = import.meta.env.VITE_WS_URL;
+    if (!wsUrl) return;
 
-  ws.onopen = () => console.log('WebSocket połączony');
-  ws.onclose = () => console.log('WebSocket rozłączony');
+    const ws = new WebSocket(wsUrl);
 
-  ws.onmessage = async (event) => {
-    // Trigger aktualizacji danych
-    try {
-      const apiUrl = import.meta.env.VITE_API_URL;
-      const res = await fetch(apiUrl);
-      const json: ApiResponse = await res.json();
-      const newCharts = json.charts || [];
+    ws.onopen = () => console.log('WebSocket połączony');
+    ws.onclose = () => console.log('WebSocket rozłączony');
 
-      // Porównanie starych i nowych danych po slotach
-      setCharts((prevCharts) => {
-        const updatedCharts = [...prevCharts];
+    ws.onmessage = async () => {
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL;
+        const res = await fetch(apiUrl);
+        const json: ApiResponse = await res.json();
+        const newCharts = json.charts || [];
 
-        newCharts.forEach((newChart) => {
-          const index = updatedCharts.findIndex(c => c.slot === newChart.slot && c.title === newChart.title);
-          if (index >= 0) {
-            // Aktualizacja danych tylko jeśli się różnią
-            const prevData = updatedCharts[index].data;
-            const isDifferent = JSON.stringify(prevData) !== JSON.stringify(newChart.data);
-            if (isDifferent) {
-              updatedCharts[index] = newChart;
+        setCharts(prevCharts => {
+          const updatedCharts = [...prevCharts];
+
+          newCharts.forEach(newChart => {
+            const index = updatedCharts.findIndex(c => c.slot === newChart.slot && c.title === newChart.title);
+            if (index >= 0) {
+              const prevData = updatedCharts[index].data;
+              if (JSON.stringify(prevData) !== JSON.stringify(newChart.data)) {
+                updatedCharts[index] = newChart;
+              }
+            } else {
+              updatedCharts.push(newChart);
             }
-          } else {
-            // Nowy wykres (nowy slot) – dodajemy go
-            updatedCharts.push(newChart);
-          }
+          });
+
+          return updatedCharts;
         });
 
-        return updatedCharts;
-      });
+        setLastUpdated(new Date());
+      } catch (err) {
+        console.error('Błąd przy pobieraniu danych po WS:', err);
+      }
+    };
 
-      setLastUpdated(new Date());
-      setLoading(false);
-
-    } catch (err) {
-      console.error('Błąd przy pobieraniu danych po WS:', err);
-    }
-  };
-
-  return () => ws.close();
-}, []);
+    return () => ws.close();
+  }, []);
 
   const baseList = Array.from(new Set(charts.map(c => c.title.split('::')[0])));
   const allSelected = selectedBases.includes('all') || selectedBases.length === baseList.length;
@@ -242,9 +239,7 @@ useEffect(() => {
     if (!grouped[base]) grouped[base] = [];
     grouped[base].push(c);
   });
-  Object.keys(grouped).forEach(base => {
-    grouped[base].sort((a, b) => a.slot - b.slot);
-  });
+  Object.keys(grouped).forEach(base => grouped[base].sort((a, b) => a.slot - b.slot));
 
   const displayedBases = orderedBases.filter(b => allSelected || selectedBases.includes(b));
 
@@ -256,7 +251,7 @@ useEffect(() => {
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
-      setOrderedBases((items) => {
+      setOrderedBases(items => {
         const oldIndex = items.indexOf(active.id as string);
         const newIndex = items.indexOf(over.id as string);
         return arrayMove(items, oldIndex, newIndex);
@@ -273,45 +268,37 @@ useEffect(() => {
       <div style={{ marginBottom: 16 }}>
         <div className="base-selector">
           <button onClick={() => setDropdownOpen(prev => !prev)}>
-            {allSelected ? 'Wszystkie bazy' : `${selectedBases.length} wybrane`}
+            {allSelected ? 'Wszystkie bazy' : `${selectedBases.length} baza(-y)`} ▼
           </button>
           {dropdownOpen && (
-            <div className="dropdown">
-              <div className="option" onClick={() => toggleBase('all')}>
-                <input type="checkbox" checked={allSelected} readOnly /> Wszystkie
-              </div>
+            <div className="base-dropdown">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={() => toggleBase('all')}
+                /> Wszystkie
+              </label>
               {baseList.map(base => (
-                <div
-                  key={base}
-                  className="option"
-                  onClick={() => toggleBase(base)}
-                >
+                <label key={base}>
                   <input
                     type="checkbox"
-                    checked={selectedBases.includes(base) || allSelected}
-                    readOnly
+                    checked={allSelected || selectedBases.includes(base)}
+                    onChange={() => toggleBase(base)}
                   /> {base}
-                </div>
+                </label>
               ))}
             </div>
           )}
         </div>
+        {lastUpdated && <p>Ostatnia aktualizacja: {lastUpdated.toLocaleTimeString()}</p>}
       </div>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={displayedBases} strategy={verticalListSortingStrategy}>
-          {displayedBases.map(baseName => {
-            const itemsForBase = grouped[baseName];
-            if (!itemsForBase) return null;
-            return (
-              <SortableBase
-                key={baseName}
-                id={baseName}
-                baseName={baseName}
-                items={itemsForBase}
-              />
-            );
-          })}
+          {displayedBases.map(base => (
+            <SortableBase key={base} id={base} baseName={base} items={grouped[base]} />
+          ))}
         </SortableContext>
       </DndContext>
     </div>

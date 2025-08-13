@@ -171,20 +171,21 @@ useEffect(() => {
   };
 
   ws.onmessage = (event) => {
-    try {
-      const json: ApiResponse = JSON.parse(event.data);
-      setCharts(json.charts || []);
-      setLastUpdated(new Date());
+  console.log('WebSocket message:', event.data); // <--- tutaj zobacz co przychodzi
+  try {
+    const json: ApiResponse = JSON.parse(event.data);
+    console.log('Parsed charts:', json.charts);
+    setCharts(json.charts || []);
+    setLastUpdated(new Date());
 
-      // Jeśli nie mamy jeszcze kolejności baz, ustaw ją
-      if (!orderedBases.length && json.charts?.length) {
-        const bases = Array.from(new Set(json.charts.map(c => c.title.split('::')[0])));
-        setOrderedBases(bases);
-      }
-    } catch (e) {
-      console.error('Błąd parsowania danych z WebSocket:', e);
+    if (!orderedBases.length && json.charts?.length) {
+      const bases = Array.from(new Set(json.charts.map(c => c.title.split('::')[0])));
+      setOrderedBases(bases);
     }
-  };
+  } catch (e) {
+    console.error('Błąd parsowania danych z WebSocket:', e);
+  }
+};
 
   ws.onerror = (err) => {
     console.error('WebSocket error:', err);

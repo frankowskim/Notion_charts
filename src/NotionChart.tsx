@@ -89,7 +89,7 @@ function SortableBase({ id, baseName, items }: SortableBaseProps) {
           const options = {
             cutout: '75%',
             responsive: true,
-            maintainAspectRatio: false,
+            maintainAspectRatio: true,
             plugins: {
               legend: { display: true, position: 'bottom' as const },
               tooltip: {

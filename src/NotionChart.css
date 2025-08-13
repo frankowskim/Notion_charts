@@ -1,17 +1,15 @@
 /* Kontenery wykresów */
 .chart-container {
-  position: relative;
   width: 100%;
-  /* height można ustawić np. w proporcji do szerokości */
-  padding-top: 100%; /* kwadratowy kontener */
+  max-width: 320px;
+  margin-bottom: 2rem;
+  position: relative;
 }
 
 .chart-container canvas {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100% !important;
-  height: 100% !important;
+display: block;
+width: 100% !important;
+height: auto !important;
 }
 
 /* Tytuły wykresów */

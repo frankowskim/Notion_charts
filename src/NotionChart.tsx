@@ -89,7 +89,11 @@ function SortableBase({ id, baseName, items }: SortableBaseProps) {
           const options = {
             cutout: '75%',
             responsive: true,
-            maintainAspectRatio: true,
+            maintainAspectRatio: false,
+           nimation: {
+    duration: 800, // płynna zmiana wartości
+    easing: 'easeOutCubic',
+  },
             plugins: {
               legend: { display: true, position: 'bottom' as const },
               tooltip: {
@@ -160,44 +164,53 @@ export default function NotionChart() {
   };
 
 useEffect(() => {
-  // Funkcja inicjalizująca WebSocket
   const wsUrl = import.meta.env.VITE_WS_URL;
   if (!wsUrl) return;
 
   const ws = new WebSocket(wsUrl);
 
-  ws.onopen = () => {
-    console.log('WebSocket połączony');
-  };
+  ws.onopen = () => console.log('WebSocket połączony');
+  ws.onclose = () => console.log('WebSocket rozłączony');
 
-  ws.onmessage = (event) => {
-  console.log('WebSocket message:', event.data); // <--- tutaj zobacz co przychodzi
-  try {
-    const json: ApiResponse = JSON.parse(event.data);
-    console.log('Parsed charts:', json.charts);
-    setCharts(json.charts || []);
-    setLastUpdated(new Date());
+  ws.onmessage = async (event) => {
+    // Trigger aktualizacji danych
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL;
+      const res = await fetch(apiUrl);
+      const json: ApiResponse = await res.json();
+      const newCharts = json.charts || [];
 
-    if (!orderedBases.length && json.charts?.length) {
-      const bases = Array.from(new Set(json.charts.map(c => c.title.split('::')[0])));
-      setOrderedBases(bases);
+      // Porównanie starych i nowych danych po slotach
+      setCharts((prevCharts) => {
+        const updatedCharts = [...prevCharts];
+
+        newCharts.forEach((newChart) => {
+          const index = updatedCharts.findIndex(c => c.slot === newChart.slot && c.title === newChart.title);
+          if (index >= 0) {
+            // Aktualizacja danych tylko jeśli się różnią
+            const prevData = updatedCharts[index].data;
+            const isDifferent = JSON.stringify(prevData) !== JSON.stringify(newChart.data);
+            if (isDifferent) {
+              updatedCharts[index] = newChart;
+            }
+          } else {
+            // Nowy wykres (nowy slot) – dodajemy go
+            updatedCharts.push(newChart);
+          }
+        });
+
+        return updatedCharts;
+      });
+
+      setLastUpdated(new Date());
+      setLoading(false);
+
+    } catch (err) {
+      console.error('Błąd przy pobieraniu danych po WS:', err);
     }
-  } catch (e) {
-    console.error('Błąd parsowania danych z WebSocket:', e);
-  }
-};
-
-  ws.onerror = (err) => {
-    console.error('WebSocket error:', err);
   };
 
-  ws.onclose = () => {
-    console.log('WebSocket rozłączony');
-  };
-
-  return () => {
-    ws.close();
-  };
+  return () => ws.close();
 }, []);
 
   const baseList = Array.from(new Set(charts.map(c => c.title.split('::')[0])));

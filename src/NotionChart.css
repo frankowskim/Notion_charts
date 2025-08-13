@@ -1,9 +1,9 @@
 /* Kontenery wykresów */
 .chart-container {
   width: 320px;
+  height: 200px;
   margin-bottom: 2rem;
   position: relative;
-  height: 200px;
 }
 
 /* Tytuły wykresów */
@@ -42,19 +42,25 @@
 /* Grid wykresów */
 .chart-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 20px;
 }
 
-@media (min-width: 600px) {
+@media (min-width: 500px) {
   .chart-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
-@media (min-width: 1000px) {
+@media (min-width: 800px) {
   .chart-grid {
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1200px) {
+  .chart-grid {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 

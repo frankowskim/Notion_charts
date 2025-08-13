@@ -186,27 +186,8 @@ export default function NotionChart() {
         const json: ApiResponse = await res.json();
         const newCharts = json.charts || [];
 
-        setCharts((prevCharts) => {
-          const updatedCharts = [...prevCharts];
-          newCharts.forEach((newChart) => {
-            const index = updatedCharts.findIndex(
-              (c) => c.slot === newChart.slot && c.title === newChart.title
-            );
-            if (index >= 0) {
-              const prevData = updatedCharts[index].data;
-              if (JSON.stringify(prevData) !== JSON.stringify(newChart.data)) {
-                updatedCharts[index] = {
-                  ...updatedCharts[index],
-                  data: newChart.data,
-                };
-              }
-            } else {
-              updatedCharts.push(newChart);
-            }
-          });
-          return updatedCharts;
-        });
-
+        // Tworzymy nową tablicę, aby wymusić rerender wszystkich wykresów
+        setCharts([...newCharts]);
         setLastUpdated(new Date());
       } catch (err) {
         console.error("Błąd przy pobieraniu danych po WS:", err);

@@ -1,267 +1,122 @@
-import React, { useEffect, useState } from 'react';
-import { Doughnut } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  ArcElement,
-  Tooltip,
-  Legend
-} from 'chart.js';
-import ChartDataLabels from 'chartjs-plugin-datalabels';
-
+import React, { useState } from "react";
 import {
   DndContext,
+  closestCenter,
+  PointerSensor,
   useSensor,
   useSensors,
-  PointerSensor,
-  KeyboardSensor,
-  closestCenter,
-  DragEndEvent
-} from '@dnd-kit/core';
-
+} from "@dnd-kit/core";
 import {
   arrayMove,
   SortableContext,
+  useSortable,
   verticalListSortingStrategy,
-  useSortable
-} from '@dnd-kit/sortable';
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import "./NotionChart.css";
 
-import { CSS } from '@dnd-kit/utilities';
-import './NotionChart.css';
-
-ChartJS.register(ArcElement, Tooltip, Legend, ChartDataLabels);
-
-interface ChartDataPoint {
-  label: string;
-  value: number;
-}
-
-interface ChartItem {
-  title: string;
-  slot: number;
-  data: ChartDataPoint[];
-}
-
-interface ApiResponse {
-  charts: ChartItem[];
-}
-
-interface SortableBaseProps {
+type Base = {
   id: string;
-  baseName: string;
-  items: ChartItem[];
-}
+  name: string;
+  visible: boolean;
+};
 
-function SortableBase({ id, baseName, items }: SortableBaseProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging
-  } = useSortable({ id });
+const SortableBase = ({ id, children }: { id: string; children: React.ReactNode }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    zIndex: isDragging ? 999 : undefined,
-    opacity: isDragging ? 0.8 : 1,
-    backgroundColor: 'white',
-    borderRadius: '8px',
-    padding: '16px',
-    boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <h2 className="chart-title">{baseName}</h2>
-      <div className="chart-grid">
-        {items.map(chart => {
-          const total = chart.data.reduce((acc, d) => acc + d.value, 0);
-          const data = {
-            labels: chart.data.map(d => d.label),
-            datasets: [
-              {
-                data: chart.data.map(d => d.value),
-                backgroundColor: ['#94999dff', '#36a2eb', '#ff4069', '#277f53'],
-                borderWidth: 0
-              }
-            ]
-          };
-          const options = {
-            cutout: '75%',
-            plugins: {
-              legend: { display: true, position: 'bottom' as const },
-              tooltip: {
-                callbacks: {
-                  label: (ctx: any) => {
-                    const label = ctx.label || '';
-                    const value = ctx.parsed || 0;
-                    const percent = total > 0 ? Math.round((value / total) * 100) : 0;
-                    return `${label} ${value} (${percent}%)`;
-                  }
-                }
-              },
-              datalabels: { display: false }
-            }
-          };
-
-          return (
-            <div key={`${baseName}-${chart.slot}`} className="chart-container">
-              <h3 className="chart-title">{chart.title.split('::')[1] || `Slot ${chart.slot}`}</h3>
-              <Doughnut data={data} options={options} />
-              <div className="chart-center">
-                <span className="chart-total">{total}</span>
-                <span className="chart-total-label">Total</span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`sortable-base ${isDragging ? "dragging" : ""}`}
+      {...attributes}
+      {...listeners}
+    >
+      {children}
     </div>
   );
-}
+};
 
 export default function NotionChart() {
-  const [charts, setCharts] = useState<ChartItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [bases, setBases] = useState<Base[]>([
+    { id: "1", name: "Baza A", visible: true },
+    { id: "2", name: "Baza B", visible: true },
+    { id: "3", name: "Baza C", visible: false },
+  ]);
 
-  const [selectedBases, setSelectedBases] = useState<string[]>(['all']);
-  const [orderedBases, setOrderedBases] = useState<string[]>([]);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const apiUrl = import.meta.env.VITE_API_URL;
-      if (!apiUrl) throw new Error('API URL not set');
+  const sensors = useSensors(useSensor(PointerSensor));
 
-      const res = await fetch(apiUrl);
-      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-
-      const json: ApiResponse = await res.json();
-      setCharts(json.charts || []);
-      setLastUpdated(new Date());
-
-      if (!orderedBases.length && json.charts?.length) {
-        const bases = Array.from(new Set(json.charts.map(c => c.title.split('::')[0])));
-        setOrderedBases(bases);
-      }
-    } catch (e) {
-      console.error('Fetch error:', e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const baseList = Array.from(new Set(charts.map(c => c.title.split('::')[0])));
-  const allSelected = selectedBases.includes('all') || selectedBases.length === baseList.length;
-
-  const toggleBase = (base: string) => {
-    if (base === 'all') {
-      setSelectedBases(['all']);
-      return;
-    }
-    if (selectedBases.includes('all')) {
-      setSelectedBases([base]);
-      return;
-    }
-    if (selectedBases.includes(base)) {
-      const filtered = selectedBases.filter(b => b !== base);
-      setSelectedBases(filtered.length ? filtered : ['all']);
-    } else {
-      const added = [...selectedBases, base];
-      if (added.length === baseList.length) setSelectedBases(['all']);
-      else setSelectedBases(added);
-    }
-  };
-
-  const filteredCharts = allSelected ? charts : charts.filter(c => selectedBases.includes(c.title.split('::')[0]));
-  const grouped: Record<string, ChartItem[]> = {};
-  filteredCharts.forEach(c => {
-    const base = c.title.split('::')[0];
-    if (!grouped[base]) grouped[base] = [];
-    grouped[base].push(c);
-  });
-  Object.keys(grouped).forEach(base => {
-    grouped[base].sort((a, b) => a.slot - b.slot);
-  });
-
-  const displayedBases = orderedBases.filter(b => allSelected || selectedBases.includes(b));
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor)
-  );
-
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = (event: any) => {
     const { active, over } = event;
-    if (over && active.id !== over.id) {
-      setOrderedBases((items) => {
-        const oldIndex = items.indexOf(active.id as string);
-        const newIndex = items.indexOf(over.id as string);
+    if (active.id !== over?.id) {
+      setBases((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
         return arrayMove(items, oldIndex, newIndex);
       });
     }
   };
 
-  if (loading) return <p>⏳ Ładowanie danych...</p>;
-  if (!charts.length) return <p>⚠️ Brak danych do wyświetlenia</p>;
-  if (!displayedBases.length) return <p>⚠️ Brak wybranych baz</p>;
+  const toggleBaseVisibility = (id: string) => {
+    setBases((prev) =>
+      prev.map((base) =>
+        base.id === id ? { ...base, visible: !base.visible } : base
+      )
+    );
+  };
 
   return (
-    <div style={{ padding: 20 }}>
-      <div style={{ marginBottom: 16 }}>
-        <div className="base-selector">
-          <button onClick={() => setDropdownOpen(prev => !prev)}>
-            {allSelected ? 'Wszystkie bazy' : `${selectedBases.length} wybrane`}
-          </button>
-          {dropdownOpen && (
-            <div className="dropdown">
-              <div className="option" onClick={() => toggleBase('all')}>
-                <input type="checkbox" checked={allSelected} readOnly /> Wszystkie
+    <div>
+      {/* Dropdown menu wyboru bazy */}
+      <div className="base-selector">
+        <button onClick={() => setIsDropdownOpen((prev) => !prev)}>
+          Wybierz bazy
+        </button>
+        {isDropdownOpen && (
+          <div className="dropdown">
+            {bases.map((base) => (
+              <div
+                key={base.id}
+                className="option"
+                onClick={() => toggleBaseVisibility(base.id)}
+              >
+                <input type="checkbox" checked={base.visible} readOnly />
+                {base.name}
               </div>
-              {baseList.map(base => (
-                <div
-                  key={base}
-                  className="option"
-                  onClick={() => toggleBase(base)}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedBases.includes(base) || allSelected}
-                    readOnly
-                  /> {base}
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Drag & Drop lista baz */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={bases.map((b) => b.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          {bases
+            .filter((b) => b.visible)
+            .map((base) => (
+              <SortableBase key={base.id} id={base.id}>
+                <h3 className="chart-title">{base.name}</h3>
+                <div className="chart-center">
+                  <span className="chart-total">123</span>
+                  <span className="chart-total-label">Total</span>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div style={{ marginBottom: 16, fontSize: 12, color: '#666' }}>
-        Ostatnia aktualizacja: {lastUpdated?.toLocaleTimeString() || '-'}
-      </div>
-
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={displayedBases} strategy={verticalListSortingStrategy}>
-          {displayedBases.map(baseName => {
-            const itemsForBase = grouped[baseName];
-            if (!itemsForBase) return null;
-            return (
-              <SortableBase
-                key={baseName}
-                id={baseName}
-                baseName={baseName}
-                items={itemsForBase}
-              />
-            );
-          })}
+              </SortableBase>
+            ))}
         </SortableContext>
       </DndContext>
     </div>

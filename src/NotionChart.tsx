@@ -179,11 +179,9 @@ export default function NotionChart() {
       if (!apiUrl) return;
 
       // budujemy URL WebSocket z tego samego hosta, co API
-      const wsUrl = apiUrl
-        .replace(/^http/, "ws") // zamiana http -> ws, https -> wss
-        .replace(/\/api.*/, ""); // obcięcie ścieżki /api/notion
-
-      const ws = new WebSocket(wsUrl);
+      const wsUrl = apiUrl.replace(/^http/, "ws"); // https://... -> wss://...
+      // apiUrl = "https://notionchartsbackend-production.up.railway.app/api/notion"
+      const ws = new WebSocket(wsUrl + "/ws"); // wss://.../api/notion/ws
 
       ws.onopen = () => console.log("🔌 WebSocket połączony:", wsUrl);
       ws.onclose = () => console.log("❌ WebSocket rozłączony");

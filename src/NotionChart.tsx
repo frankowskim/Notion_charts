@@ -172,7 +172,7 @@ export default function NotionChart() {
   }, []);
 
   useEffect(() => {
-    const wsUrl = import.meta.env.VITE_WS_URL;
+    const wsUrl = import.meta.env.VITE_API_URL;
     if (!wsUrl) return;
 
     const ws = new WebSocket(wsUrl);

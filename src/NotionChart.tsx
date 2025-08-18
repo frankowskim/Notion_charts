@@ -172,33 +172,39 @@ export default function NotionChart() {
   }, []);
 
   useEffect(() => {
-    const wsUrl = import.meta.env.VITE_WS_URL;
-    if (!wsUrl) return;
+    const initializeWebSocket = async () => {
+      await fetchData(); // poczekaj na pierwsze pobranie danych
 
-    const ws = new WebSocket(wsUrl);
-    ws.onopen = () => console.log("WebSocket połączony");
-    ws.onclose = () => console.log("WebSocket rozłączony");
+      const apiUrl = import.meta.env.VITE_API_URL;
+      if (!apiUrl) return;
 
-    ws.onmessage = async () => {
-      try {
-        const apiUrl = import.meta.env.VITE_API_URL;
-        const res = await fetch(apiUrl);
-        const json: ApiResponse = await res.json();
-        const newCharts = json.charts || [];
+      // budujemy URL WebSocket z tego samego hosta, co API
+      const wsUrl = apiUrl
+        .replace(/^http/, "ws") // zamiana http -> ws, https -> wss
+        .replace(/\/api.*/, ""); // obcięcie ścieżki /api/notion
 
-        // Tworzymy nową tablicę, aby wymusić rerender wszystkich wykresów
-        setCharts([...newCharts]);
-        setLastUpdated(new Date());
-      } catch (err) {
-        console.error("Błąd przy pobieraniu danych po WS:", err);
-      }
+      const ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => console.log("🔌 WebSocket połączony:", wsUrl);
+      ws.onclose = () => console.log("❌ WebSocket rozłączony");
+
+      ws.onmessage = async () => {
+        try {
+          const res = await fetch(apiUrl);
+          const json: ApiResponse = await res.json();
+          const newCharts = json.charts || [];
+
+          setCharts([...newCharts]);
+          setLastUpdated(new Date());
+        } catch (err) {
+          console.error("Błąd przy pobieraniu danych po WS:", err);
+        }
+      };
+
+      return () => ws.close();
     };
 
-    ws.onerror = (err) => {
-      console.error("Błąd WebSocket:", err);
-    };
-
-    return () => ws.close();
+    initializeWebSocket();
   }, []);
 
   const baseList = Array.from(

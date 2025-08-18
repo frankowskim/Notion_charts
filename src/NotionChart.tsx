@@ -172,29 +172,30 @@ export default function NotionChart() {
   }, []);
 
   useEffect(() => {
-    const apiUrl = import.meta.env.VITE_API_URL;
-    if (!apiUrl) return;
-
-    // budujemy URL WebSocket z tego samego hosta, co API
-    const wsUrl = apiUrl
-      .replace(/^http/, "ws") // zamiana http -> ws, https -> wss
-      .replace(/\/api.*/, ""); // obcięcie ścieżki /api/notion
+    const wsUrl = import.meta.env.VITE_WS_URL;
+    if (!wsUrl) return;
 
     const ws = new WebSocket(wsUrl);
-    ws.onopen = () => console.log("🔌 WebSocket połączony:", wsUrl);
-    ws.onclose = () => console.log("❌ WebSocket rozłączony");
+    ws.onopen = () => console.log("WebSocket połączony");
+    ws.onclose = () => console.log("WebSocket rozłączony");
 
     ws.onmessage = async () => {
       try {
+        const apiUrl = import.meta.env.VITE_API_URL;
         const res = await fetch(apiUrl);
         const json: ApiResponse = await res.json();
         const newCharts = json.charts || [];
 
+        // Tworzymy nową tablicę, aby wymusić rerender wszystkich wykresów
         setCharts([...newCharts]);
         setLastUpdated(new Date());
       } catch (err) {
         console.error("Błąd przy pobieraniu danych po WS:", err);
       }
+    };
+
+    ws.onerror = (err) => {
+      console.error("Błąd WebSocket:", err);
     };
 
     return () => ws.close();

@@ -23,13 +23,13 @@
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
 
-@media (min-width: 650px) {
+@media (min-width: 450px) {
   .chart-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
-@media (min-width: 700px) {
+@media (min-width: 600px) {
   .chart-grid {
     grid-template-columns: repeat(3, 1fr);
   }

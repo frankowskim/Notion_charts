@@ -29,13 +29,13 @@
   }
 }
 
-@media (min-width: 800px) {
+@media (min-width: 700px) {
   .chart-grid {
     grid-template-columns: repeat(3, 1fr);
   }
 }
 
-@media (min-width: 1000px) {
+@media (min-width: 900px) {
   .chart-grid {
     grid-template-columns: repeat(4, 1fr);
   }

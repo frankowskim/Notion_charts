@@ -172,37 +172,27 @@ export default function NotionChart() {
   }, []);
 
   useEffect(() => {
-    const initializeWebSocket = async () => {
-      await fetchData(); // poczekaj na pierwsze pobranie danych
+    const apiUrl = import.meta.env.VITE_API_URL;
+    if (!apiUrl) return;
 
-      const apiUrl = import.meta.env.VITE_API_URL;
-      if (!apiUrl) return;
+    const wsUrl = apiUrl.replace(/^http/, "ws") + "/ws";
+    const ws = new WebSocket(wsUrl);
 
-      // budujemy URL WebSocket z tego samego hosta, co API
-      const wsUrl = apiUrl.replace(/^http/, "ws"); // https://... -> wss://...
-      // apiUrl = "https://notionchartsbackend-production.up.railway.app/api/notion"
-      const ws = new WebSocket(wsUrl + "/ws"); // wss://.../api/notion/ws
+    ws.onopen = () => console.log("🔌 WebSocket połączony:", wsUrl);
+    ws.onclose = () => console.log("❌ WebSocket rozłączony");
 
-      ws.onopen = () => console.log("🔌 WebSocket połączony:", wsUrl);
-      ws.onclose = () => console.log("❌ WebSocket rozłączony");
-
-      ws.onmessage = async () => {
-        try {
-          const res = await fetch(apiUrl);
-          const json: ApiResponse = await res.json();
-          const newCharts = json.charts || [];
-
-          setCharts([...newCharts]);
-          setLastUpdated(new Date());
-        } catch (err) {
-          console.error("Błąd przy pobieraniu danych po WS:", err);
-        }
-      };
-
-      return () => ws.close();
+    ws.onmessage = async () => {
+      try {
+        const res = await fetch(apiUrl);
+        const json: ApiResponse = await res.json();
+        setCharts(json.charts || []);
+        setLastUpdated(new Date());
+      } catch (err) {
+        console.error("Błąd przy pobieraniu danych po WS:", err);
+      }
     };
 
-    initializeWebSocket();
+    return () => ws.close();
   }, []);
 
   const baseList = Array.from(

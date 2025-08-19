@@ -20,7 +20,7 @@
 .chart-grid {
   display: grid;
   gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(10px, 1fr));
 }
 
 @media (min-width: 650px) {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Doughnut } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -142,6 +142,8 @@ export default function NotionChart() {
   const [orderedBases, setOrderedBases] = useState<string[]>([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
+  const chartsRef = useRef<ChartItem[]>([]);
+
   const fetchData = async () => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL;
@@ -152,6 +154,7 @@ export default function NotionChart() {
 
       const json: ApiResponse = await res.json();
       setCharts(json.charts || []);
+      chartsRef.current = json.charts || [];
       setLastUpdated(new Date());
 
       if (!orderedBases.length && json.charts?.length) {
@@ -172,23 +175,29 @@ export default function NotionChart() {
   }, []);
 
   useEffect(() => {
-    const apiUrl = import.meta.env.VITE_API_URL;
-    if (!apiUrl) return;
+    const wsUrl = import.meta.env.VITE_WS_URL;
+    if (!wsUrl) return;
 
-    const wsUrl = apiUrl.replace(/^http/, "ws") + "/ws";
-    const ws = new WebSocket(wsUrl);
+    const ws = new WebSocket(`wss://${wsUrl}`);
 
     ws.onopen = () => console.log("🔌 WebSocket połączony:", wsUrl);
     ws.onclose = () => console.log("❌ WebSocket rozłączony");
 
-    ws.onmessage = async () => {
+    ws.onmessage = async (event) => {
       try {
-        const res = await fetch(apiUrl);
-        const json: ApiResponse = await res.json();
-        setCharts(json.charts || []);
+        const updatedData: ApiResponse = JSON.parse(event.data);
+        // Porównanie i aktualizacja tylko zmienionych danych
+        const updatedCharts = chartsRef.current.map((chart) => {
+          const updatedChart = updatedData.charts.find(
+            (c) => c.title === chart.title && c.slot === chart.slot
+          );
+          return updatedChart || chart;
+        });
+        chartsRef.current = updatedCharts;
+        setCharts(updatedCharts);
         setLastUpdated(new Date());
       } catch (err) {
-        console.error("Błąd przy pobieraniu danych po WS:", err);
+        console.error("Błąd przy aktualizacji danych z WS:", err);
       }
     };
 

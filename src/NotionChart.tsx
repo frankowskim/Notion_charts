@@ -186,7 +186,6 @@ export default function NotionChart() {
     ws.onmessage = async (event) => {
       try {
         const updatedData: ApiResponse = JSON.parse(event.data);
-        // Porównanie i aktualizacja tylko zmienionych danych
         const updatedCharts = chartsRef.current.map((chart) => {
           const updatedChart = updatedData.charts.find(
             (c) => c.title === chart.title && c.slot === chart.slot
@@ -203,6 +202,22 @@ export default function NotionChart() {
 
     return () => ws.close();
   }, []);
+
+  // 🔧 FIX: wymuszenie resize wykresów przy zmianie rozmiaru kontenera
+  useEffect(() => {
+    const wrappers = document.querySelectorAll(".chart-wrapper");
+    if (!wrappers.length) return;
+
+    const observer = new ResizeObserver(() => {
+      for (const chart of Object.values(ChartJS.instances)) {
+        // rzutowanie na ChartJS
+        (chart as ChartJS).resize();
+      }
+    });
+
+    wrappers.forEach((w) => observer.observe(w));
+    return () => observer.disconnect();
+  }, [charts]);
 
   const baseList = Array.from(
     new Set(charts.map((c) => c.title.split("::")[0]))

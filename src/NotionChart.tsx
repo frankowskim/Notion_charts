@@ -189,14 +189,14 @@ export default function NotionChart() {
 
     ws.onmessage = async (event) => {
       try {
-        const updatedData: ApiResponse = JSON.parse(event.data);
-        console.log("DEBUG WS message:", updatedData);
+        const updatedData = JSON.parse(event.data);
 
-        if (!updatedData?.charts) return;
+        if (updatedData.type !== "update" || !updatedData.charts?.charts)
+          return;
 
         const updatedCharts = chartsRef.current.map((chart) => {
-          const updatedChart = updatedData.charts.find(
-            (c) => c.title === chart.title && c.slot === chart.slot
+          const updatedChart = updatedData.charts.charts.find(
+            (c: ChartItem) => c.title === chart.title && c.slot === chart.slot
           );
           return updatedChart || chart;
         });

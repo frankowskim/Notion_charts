@@ -176,9 +176,13 @@ export default function NotionChart() {
 
   useEffect(() => {
     const wsUrl = import.meta.env.VITE_WS_URL;
-    if (!wsUrl) return;
+    if (!wsUrl) {
+      console.error("❌ Brak zmiennej VITE_WS_URL");
+      return;
+    }
 
-    const ws = new WebSocket(`wss://${wsUrl}`);
+    // 👇 wsUrl już powinien zawierać "wss://..."
+    const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => console.log("🔌 WebSocket połączony:", wsUrl);
     ws.onclose = () => console.log("❌ WebSocket rozłączony");

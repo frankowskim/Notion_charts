@@ -142,7 +142,7 @@ export default function NotionChart() {
   const [orderedBases, setOrderedBases] = useState<string[]>([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
-  const [theme, setTheme] = useState<"dark" | "light">("dark"); // 🔥 stan trybu
+  const [theme, setTheme] = useState<"dark" | "light">("dark"); // 🌙☀️ stan motywu
   const chartsRef = useRef<ChartItem[]>([]);
 
   const fetchData = async () => {
@@ -182,7 +182,6 @@ export default function NotionChart() {
       return;
     }
 
-    // 👇 wsUrl już powinien zawierać "wss://..."
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => console.log("🔌 WebSocket połączony:", wsUrl);
@@ -213,14 +212,12 @@ export default function NotionChart() {
     return () => ws.close();
   }, []);
 
-  // 🔧 FIX: wymuszenie resize wykresów przy zmianie rozmiaru kontenera
   useEffect(() => {
     const wrappers = document.querySelectorAll(".chart-wrapper");
     if (!wrappers.length) return;
 
     const observer = new ResizeObserver(() => {
       for (const chart of Object.values(ChartJS.instances)) {
-        // rzutowanie na ChartJS
         (chart as ChartJS).resize();
       }
     });
@@ -332,9 +329,9 @@ export default function NotionChart() {
           )}
         </div>
 
-        {/* 🔥 Przycisk zmiany trybu */}
+        {/* 🌙☀️ Przycisk zmiany trybu */}
         <button
-          className="theme-toggle"
+          className={`theme-toggle ${theme}`}
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
         >
           {theme === "dark" ? "☀️ Dzień" : "🌙 Noc"}

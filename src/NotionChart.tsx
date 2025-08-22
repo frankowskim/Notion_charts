@@ -334,7 +334,7 @@ export default function NotionChart() {
           className={`theme-toggle ${theme}`}
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
         >
-          {theme === "dark" ? "☀️ Dzień" : "🌙 Noc"}
+          {theme === "dark" ? "☀️/🌙" : "🌙/☀️"}
         </button>
       </div>
 

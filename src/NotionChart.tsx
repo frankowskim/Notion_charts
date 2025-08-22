@@ -142,6 +142,7 @@ export default function NotionChart() {
   const [orderedBases, setOrderedBases] = useState<string[]>([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
+  const [theme, setTheme] = useState<"dark" | "light">("dark"); // 🔥 stan trybu
   const chartsRef = useRef<ChartItem[]>([]);
 
   const fetchData = async () => {
@@ -291,8 +292,15 @@ export default function NotionChart() {
   if (!displayedBases.length) return <p>⚠️ Brak wybranych baz</p>;
 
   return (
-    <div style={{ padding: 20 }}>
-      <div style={{ marginBottom: 16 }}>
+    <div className={`notion-app ${theme}`} style={{ padding: 20 }}>
+      <div
+        style={{
+          marginBottom: 16,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
         <div className="base-selector">
           <button onClick={() => setDropdownOpen((prev) => !prev)}>
             {allSelected
@@ -323,10 +331,19 @@ export default function NotionChart() {
             </div>
           )}
         </div>
-        {lastUpdated && (
-          <p>Ostatnia aktualizacja: {lastUpdated.toLocaleTimeString()}</p>
-        )}
+
+        {/* 🔥 Przycisk zmiany trybu */}
+        <button
+          className="theme-toggle"
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+        >
+          {theme === "dark" ? "☀️ Dzień" : "🌙 Noc"}
+        </button>
       </div>
+
+      {lastUpdated && (
+        <p>Ostatnia aktualizacja: {lastUpdated.toLocaleTimeString()}</p>
+      )}
 
       <DndContext
         sensors={sensors}

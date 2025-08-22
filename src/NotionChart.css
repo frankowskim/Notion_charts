@@ -1,3 +1,9 @@
+/* 🌙 Tryb ciemny (domyślny Notion-like) */
+.notion-app.dark {
+  background: #1f1f1f;
+  color: #e0e0e0;
+}
+
 .sortable-base {
   background: #242424;
   border-radius: 12px;
@@ -91,6 +97,7 @@
   border-radius: 6px;
   border: 1px solid #353535;
   background: #242424;
+  color: #e0e0e0;
 }
 
 .base-dropdown {
@@ -110,4 +117,53 @@
   margin-bottom: 4px;
   font-size: 14px;
   cursor: pointer;
+}
+
+/* ☀️ Tryb jasny (wariant Notion) */
+.notion-app.light {
+  background: #ffffff;
+  color: #202020;
+}
+
+.notion-app.light .sortable-base {
+  background: #f9f9f9;
+  border: 1px solid #e5e5e5;
+}
+
+.notion-app.light .chart-title {
+  color: #202020;
+}
+
+.notion-app.light .chart-total {
+  color: #202020;
+}
+
+.notion-app.light .chart-total-label {
+  color: #555;
+}
+
+.notion-app.light .base-selector button {
+  background: #ffffff;
+  border: 1px solid #d0d0d0;
+  color: #202020;
+}
+
+.notion-app.light .base-dropdown {
+  background: #ffffff;
+  border: 1px solid #d0d0d0;
+}
+
+/* 🔘 Przycisk przełączania motywu */
+.theme-toggle {
+  padding: 6px 12px;
+  cursor: pointer;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background: #f0f0f0;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.theme-toggle:hover {
+  background: #e0e0e0;
 }

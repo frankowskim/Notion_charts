@@ -511,7 +511,7 @@ export default function NotionChart() {
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         {/* Nowy: ręczne odświeżenie połączenia WS */}
         <button
-          className="btn-reconnect"
+          className={`btn-reconnect ${theme}`}
           onClick={handleManualReconnect}
           title="Wymuś ponowne połączenie WebSocket"
         >
@@ -520,7 +520,7 @@ export default function NotionChart() {
 
         {/* Opcjonalnie: ręczne odświeżenie danych z API */}
         <button
-          className="btn-reconnect"
+          className={`btn-reconnect ${theme}`}
           onClick={handleManualRefreshData}
           title="Pobierz dane z API"
         >

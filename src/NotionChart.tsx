@@ -530,11 +530,17 @@ export default function NotionChart() {
         {/* status WS */}
         <div style={{ marginLeft: 8 }}>
           {wsStatus === "connected" ? (
-            <span>🔌 Połączony</span>
+            <span style={{ display: "flex", justifyContent: "center" }}>
+              🔌 Połączony
+            </span>
           ) : wsStatus === "connecting" ? (
-            <span>🔁 Łączenie...</span>
+            <span style={{ display: "flex", justifyContent: "center" }}>
+              🔁 Łączenie...
+            </span>
           ) : (
-            <span>❌ Rozłączony</span>
+            <span style={{ display: "flex", justifyContent: "center" }}>
+              ❌ Rozłączony
+            </span>
           )}
         </div>
       </div>

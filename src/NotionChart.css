@@ -119,6 +119,11 @@
   cursor: pointer;
 }
 
+.btn-reconnect {
+  background-color: #242424;
+  color: #e0e0e0;
+}
+
 /* ☀️ Tryb jasny (wariant Notion) */
 .notion-app.light {
   background: #ffffff;
@@ -180,4 +185,8 @@
 }
 .notion-app.light .theme-toggle:hover {
   background: #e0e0e0;
+}
+.btn-reconnect.light {
+  background-color: #f0f0f0;
+  color: #202020;
 }

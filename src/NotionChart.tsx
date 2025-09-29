@@ -498,7 +498,15 @@ export default function NotionChart() {
             </div>
           )}
         </div>
-
+      </div>
+      <div
+        style={{
+          marginBottom: 16,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {/* 🌙☀️ Przycisk zmiany trybu */}
           <button

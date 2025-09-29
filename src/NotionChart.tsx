@@ -498,15 +498,6 @@ export default function NotionChart() {
             </div>
           )}
         </div>
-      </div>
-      <div
-        style={{
-          marginBottom: 16,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {/* 🌙☀️ Przycisk zmiany trybu */}
           <button
@@ -516,35 +507,35 @@ export default function NotionChart() {
             {theme === "dark" ? "☀️/🌙" : "🌙/☀️"}
           </button>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {/* Nowy: ręczne odświeżenie połączenia WS */}
-          <button
-            className="btn-reconnect"
-            onClick={handleManualReconnect}
-            title="Wymuś ponowne połączenie WebSocket"
-          >
-            🔄 Odśwież połączenie
-          </button>
+      </div>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        {/* Nowy: ręczne odświeżenie połączenia WS */}
+        <button
+          className="btn-reconnect"
+          onClick={handleManualReconnect}
+          title="Wymuś ponowne połączenie WebSocket"
+        >
+          🔄 Odśwież połączenie
+        </button>
 
-          {/* Opcjonalnie: ręczne odświeżenie danych z API */}
-          <button
-            className="btn-reconnect"
-            onClick={handleManualRefreshData}
-            title="Pobierz dane z API"
-          >
-            ↻ Odśwież dane
-          </button>
+        {/* Opcjonalnie: ręczne odświeżenie danych z API */}
+        <button
+          className="btn-reconnect"
+          onClick={handleManualRefreshData}
+          title="Pobierz dane z API"
+        >
+          ↻ Odśwież dane
+        </button>
 
-          {/* status WS */}
-          <div style={{ marginLeft: 8 }}>
-            {wsStatus === "connected" ? (
-              <span>🔌 Połączony</span>
-            ) : wsStatus === "connecting" ? (
-              <span>🔁 Łączenie...</span>
-            ) : (
-              <span>❌ Rozłączony</span>
-            )}
-          </div>
+        {/* status WS */}
+        <div style={{ marginLeft: 8 }}>
+          {wsStatus === "connected" ? (
+            <span>🔌 Połączony</span>
+          ) : wsStatus === "connecting" ? (
+            <span>🔁 Łączenie...</span>
+          ) : (
+            <span>❌ Rozłączony</span>
+          )}
         </div>
       </div>
 

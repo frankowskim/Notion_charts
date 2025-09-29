@@ -29,18 +29,6 @@
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
 
-@media (min-width: 451px) {
-  .chart-center {
-    top: 35%;
-  }
-}
-
-@media (min-width: 574px) {
-  .chart-center {
-    top: 43%;
-  }
-}
-
 @media (min-width: 650px) {
   .chart-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -80,6 +68,18 @@
   transform: translate(-50%, -50%);
   text-align: center;
   pointer-events: none;
+}
+
+@media (min-width: 451px) {
+  .chart-center {
+    top: 35%;
+  }
+}
+
+@media (min-width: 574px) {
+  .chart-center {
+    top: 43%;
+  }
 }
 
 .chart-total {

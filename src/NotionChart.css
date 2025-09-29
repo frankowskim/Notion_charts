@@ -29,13 +29,13 @@
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
 
-@media (max-width: 537px) {
+@media (min-width: 451px) {
   .chart-center {
     top: 35%;
   }
 }
 
-@media (max-width: 451px) {
+@media (min-width: 574px) {
   .chart-center {
     top: 43%;
   }

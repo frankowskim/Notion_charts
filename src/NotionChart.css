@@ -35,18 +35,23 @@
   }
 }
 
-@media (min-width: 1000px) {
+@media (min-width: 850px) {
   .chart-grid {
     grid-template-columns: repeat(3, 1fr);
   }
 }
 
-@media (min-width: 1300px) {
+@media (min-width: 1100px) {
   .chart-grid {
     grid-template-columns: repeat(4, 1fr);
   }
 }
 
+@media (min-width: 1300px) {
+  .chart-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
 .chart-container {
   position: relative;
   height: 300px;

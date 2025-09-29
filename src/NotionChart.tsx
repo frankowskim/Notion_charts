@@ -508,7 +508,7 @@ export default function NotionChart() {
             {theme === "dark" ? "☀️/🌙" : "🌙/☀️"}
           </button>
         </div>
-        <div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {/* Nowy: ręczne odświeżenie połączenia WS */}
           <button
             className="btn-reconnect"

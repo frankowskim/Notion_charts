@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useRef } from "react";
+// NotionChart.tsx
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { Doughnut } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -142,8 +143,19 @@ export default function NotionChart() {
   const [orderedBases, setOrderedBases] = useState<string[]>([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
-  const [theme, setTheme] = useState<"dark" | "light">("dark"); // 🌙☀️ stan motywu
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
   const chartsRef = useRef<ChartItem[]>([]);
+
+  // --- WS management refs/state ---
+  const wsRef = useRef<WebSocket | null>(null);
+  const heartbeatIntervalRef = useRef<number | null>(null);
+  const reconnectTimeoutRef = useRef<number | null>(null);
+  const reconnectAttemptsRef = useRef<number>(0);
+  const [wsStatus, setWsStatus] = useState<
+    "disconnected" | "connecting" | "connected"
+  >("disconnected");
+
+  const MAX_RECONNECT_ATTEMPTS = 8;
 
   const fetchData = async () => {
     try {
@@ -175,22 +187,136 @@ export default function NotionChart() {
     fetchData();
   }, []);
 
-  useEffect(() => {
+  // --- Helpers for WS lifecycle ---
+  const clearHeartbeat = () => {
+    if (heartbeatIntervalRef.current) {
+      window.clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
+    }
+  };
+
+  const startHeartbeat = (ws: WebSocket) => {
+    clearHeartbeat();
+    // Send a heartbeat every 25s (adjust as needed), so intermediaries don't close idle connections.
+    const id = window.setInterval(() => {
+      try {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "ping", ts: Date.now() }));
+        }
+      } catch (err) {
+        // swallow — if sending fails, ws.onclose will handle reconnect
+      }
+    }, 25000);
+    heartbeatIntervalRef.current = id;
+  };
+
+  const stopReconnectTimeout = () => {
+    if (reconnectTimeoutRef.current) {
+      window.clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+  };
+
+  const scheduleReconnect = (delayMs?: number) => {
+    stopReconnectTimeout();
+    const attempt = reconnectAttemptsRef.current + 1;
+    if (attempt > MAX_RECONNECT_ATTEMPTS) {
+      console.warn("Max reconnect attempts reached.");
+      setWsStatus("disconnected");
+      return;
+    }
+    reconnectAttemptsRef.current = attempt;
+    const base =
+      typeof delayMs === "number"
+        ? delayMs
+        : Math.min(1000 * 2 ** attempt, 30000);
+    console.log(`Plan reconnect in ${base}ms (attempt ${attempt})`);
+    reconnectTimeoutRef.current = window.setTimeout(() => {
+      connectWebsocket(); // eslint-disable-line @typescript-eslint/no-use-before-define
+    }, base);
+  };
+
+  const forceCloseWs = () => {
+    stopReconnectTimeout();
+    clearHeartbeat();
+    reconnectAttemptsRef.current = 0;
+    const ws = wsRef.current;
+    if (ws) {
+      try {
+        ws.onopen = null;
+        ws.onmessage = null;
+        ws.onclose = null;
+        ws.onerror = null;
+        if (
+          ws.readyState === WebSocket.OPEN ||
+          ws.readyState === WebSocket.CONNECTING
+        ) {
+          ws.close(1000, "Client requested reconnect");
+        }
+      } catch {}
+      wsRef.current = null;
+    }
+    setWsStatus("disconnected");
+  };
+
+  // connectWebsocket defined as stable callback
+  const connectWebsocket = useCallback(() => {
     const wsUrl = import.meta.env.VITE_WS_URL;
     if (!wsUrl) {
       console.error("❌ Brak zmiennej VITE_WS_URL");
+      setWsStatus("disconnected");
       return;
     }
 
-    const ws = new WebSocket(wsUrl);
+    // If already have a socket in connecting/open state, don't create a second one
+    const existing = wsRef.current;
+    if (
+      existing &&
+      (existing.readyState === WebSocket.OPEN ||
+        existing.readyState === WebSocket.CONNECTING)
+    ) {
+      console.log(
+        "WebSocket already open or connecting — skipping new connect"
+      );
+      return;
+    }
 
-    ws.onopen = () => console.log("🔌 WebSocket połączony:", wsUrl);
-    ws.onclose = () => console.log("❌ WebSocket rozłączony");
+    setWsStatus("connecting");
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log("🔌 WebSocket połączony:", wsUrl);
+      setWsStatus("connected");
+      reconnectAttemptsRef.current = 0;
+      startHeartbeat(ws);
+    };
+
+    ws.onclose = (ev) => {
+      console.log("❌ WebSocket rozłączony", ev.code, ev.reason);
+      setWsStatus("disconnected");
+      clearHeartbeat();
+      wsRef.current = null;
+      // schedule reconnect
+      scheduleReconnect();
+    };
+
+    ws.onerror = (err) => {
+      console.error("WebSocket error", err);
+      // let onclose handle reconnect flow
+    };
 
     ws.onmessage = async (event) => {
       try {
         const updatedData = JSON.parse(event.data);
 
+        // If server replies to ping with pong, ignore (optional)
+        if (updatedData?.type === "pong") {
+          // server responded to our ping — good
+          return;
+        }
+
+        // Allow the server to broadcast an 'update' envelope, or even a direct 'charts' payload
         if (updatedData.type !== "update" || !updatedData.charts?.charts)
           return;
 
@@ -208,10 +334,35 @@ export default function NotionChart() {
         console.error("Błąd przy aktualizacji danych z WS:", err);
       }
     };
-
-    return () => ws.close();
   }, []);
 
+  // Establish WS on mount
+  useEffect(() => {
+    connectWebsocket();
+    return () => {
+      // cleanup on unmount
+      forceCloseWs();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // run once
+
+  // Optional: reconnect when tab becomes visible again (helps when browser throttles in background)
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        // if disconnected -> attempt reconnect
+        if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
+          console.log("Tab visible — attempting reconnect");
+          connectWebsocket();
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Resize observer (unchanged)
   useEffect(() => {
     const wrappers = document.querySelectorAll(".chart-wrapper");
     if (!wrappers.length) return;
@@ -226,6 +377,7 @@ export default function NotionChart() {
     return () => observer.disconnect();
   }, [charts]);
 
+  // Selection logic unchanged...
   const baseList = Array.from(
     new Set(charts.map((c) => c.title.split("::")[0]))
   );
@@ -284,6 +436,24 @@ export default function NotionChart() {
     }
   };
 
+  // UI handlers for manual reconnect / refresh
+  const handleManualReconnect = async () => {
+    console.log("Ręczne odświeżenie połączenia WS — wymuszam reconnect");
+    forceCloseWs();
+    // short delay before trying to reconnect
+    window.setTimeout(() => {
+      reconnectAttemptsRef.current = 0;
+      connectWebsocket();
+    }, 250);
+  };
+
+  // small control: also allow manual full refresh of data from API
+  const handleManualRefreshData = async () => {
+    setLoading(true);
+    await fetchData();
+    setLoading(false);
+  };
+
   if (loading) return <p>⏳ Ładowanie danych...</p>;
   if (!charts.length) return <p>⚠️ Brak danych do wyświetlenia</p>;
   if (!displayedBases.length) return <p>⚠️ Brak wybranych baz</p>;
@@ -329,13 +499,39 @@ export default function NotionChart() {
           )}
         </div>
 
-        {/* 🌙☀️ Przycisk zmiany trybu */}
-        <button
-          className={`theme-toggle ${theme}`}
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-        >
-          {theme === "dark" ? "☀️/🌙" : "🌙/☀️"}
-        </button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {/* 🌙☀️ Przycisk zmiany trybu */}
+          <button
+            className={`theme-toggle ${theme}`}
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          >
+            {theme === "dark" ? "☀️/🌙" : "🌙/☀️"}
+          </button>
+
+          {/* Nowy: ręczne odświeżenie połączenia WS */}
+          <button
+            onClick={handleManualReconnect}
+            title="Wymuś ponowne połączenie WebSocket"
+          >
+            🔄 Odśwież połączenie
+          </button>
+
+          {/* Opcjonalnie: ręczne odświeżenie danych z API */}
+          <button onClick={handleManualRefreshData} title="Pobierz dane z API">
+            ↻ Odśwież dane
+          </button>
+
+          {/* status WS */}
+          <div style={{ marginLeft: 8 }}>
+            {wsStatus === "connected" ? (
+              <span>🔌 Połączony</span>
+            ) : wsStatus === "connecting" ? (
+              <span>🔁 Łączenie...</span>
+            ) : (
+              <span>❌ Rozłączony</span>
+            )}
+          </div>
+        </div>
       </div>
 
       {lastUpdated && (
